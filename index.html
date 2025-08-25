@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Canary File Generator</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <h1>Canary File Generator</h1>
+    <p class="subtitle">教育用のカナリア・ハニーファイルを生成し、アクセス検知の流れを学べるミニツール</p>
+    <div class="security-notice">
+      ⚠️ <strong>重要：</strong>本ツールは教育目的専用です。生成される認証情報はすべてダミーです。
+    </div>
+  </header>
+
+  <main class="container">
+    <nav class="tabs" role="tablist" aria-label="機能タブ">
+      <button class="tab active" data-tab="gen" role="tab" aria-selected="true">生成</button>
+      <button class="tab" data-tab="alerts" role="tab" aria-selected="false">アラート</button>
+      <button class="tab" data-tab="study" role="tab" aria-selected="false">座学</button>
+    </nav>
+
+    <!-- 生成タブ（簡易 placeholder） -->
+    <section id="tab-gen" class="tabpanel active" role="tabpanel" aria-labelledby="gen">
+      <div class="card">
+        <h2>カナリア／ハニーファイルの生成</h2>
+
+        <div class="full-width">
+          <label>ファイル名
+            <input id="fileName" type="text" placeholder="confidential.pdf" />
+          </label>
+          <div id="fileWarning" class="warning-message" style="display: none;">
+            ⚠️ 指定のファイル名で出力しますが、内容はプレーンテキストになります。必要があれば適宜手動でファイルを開けるように調整してください。
+          </div>
+        </div>
+
+        <div class="preset-section">
+          <label class="preset-label">よく使うファイル名：</label>
+          <div class="preset-buttons">
+            <button class="preset-btn" data-name="passwords.txt">passwords.txt</button>
+            <button class="preset-btn" data-name="confidential.pdf">confidential.pdf</button>
+            <button class="preset-btn" data-name="budget.xlsx">budget.xlsx</button>
+            <button class="preset-btn" data-name="secrets.docx">secrets.docx</button>
+            <button class="preset-btn" data-name="id_rsa">id_rsa</button>
+            <button class="preset-btn" data-name="api_keys.txt">api_keys.txt</button>
+            <button class="preset-btn" data-name="passwd">passwd</button>
+          </div>
+        </div>
+
+        <div class="full-width">
+          <div class="label-with-checkbox">
+            <label for="fileBody">冒頭テキスト（教育用メッセージ）</label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="includeEducationalMsg" checked />
+              <span>ファイル冒頭に出力する</span>
+            </label>
+          </div>
+          <textarea id="fileBody" rows="2">This is a Canary/Honey file for education. Opening or using this indicates access.</textarea>
+        </div>
+
+        <div class="full-width">
+          <div class="label-with-action">
+            <label for="enticingContent">誘引テキスト（ファイル内容）</label>
+            <button id="dummyTextBtn" class="mini-btn" type="button">ダミーテキストに置き換え</button>
+          </div>
+          <textarea id="enticingContent" rows="10" placeholder="実際のファイルに含まれる、攻撃者を誘引するための偽情報...">## Important Credentials
+Please keep these credentials secure and do not share.</textarea>
+          <div id="hintBox" class="hint" style="display: none;">
+            <span id="hintText"></span>
+          </div>
+        </div>
+
+        <div class="buttons">
+          <button id="generateBtn">ダウンロード生成</button>
+          <button id="simulateOpenBtn" class="secondary">（教育用）開封を擬似通知</button>
+        </div>
+
+        <p class="note">※ 実ネットワーク送信は行いません。UI上で擬似的に「検知」を表示します。</p>
+      </div>
+    </section>
+
+    <!-- アラートタブ（簡易 placeholder） -->
+    <section id="tab-alerts" class="tabpanel" role="tabpanel" aria-labelledby="alerts">
+      <div class="card">
+        <h2>検知ログ（擬似）</h2>
+        <div class="security-notice" style="margin-bottom: 16px;">
+          ⚠️ <strong>注意：</strong>このデータはブラウザーのlocalStorageに保存されます。機密情報は含まれませんが、気になる場合はツール使用後にクリアすることを推奨します。
+        </div>
+        <ul id="alertList" class="alerts"></ul>
+      </div>
+    </section>
+
+    <!-- 座学タブ：要求どおり全文をHTML化 -->
+    <section id="tab-study" class="tabpanel" role="tabpanel" aria-labelledby="study">
+      <div class="card">
+        <h2>座学：カナリアファイル／ハニーファイル／ハニートークン</h2>
+
+        <h3>1. 用語</h3>
+        <ul>
+          <li><strong>ダミーファイル (Dummy File)</strong>：代用品・テスト用。誘引・検知の仕掛けは持たない。</li>
+          <li><strong>ハニーファイル (Honey File)</strong>：攻撃者を誘引する「餌」。<u>検知は別仕掛け</u>（監査ログ、外部参照、リンク等）に依存。</li>
+          <li><strong>カナリアファイル (Canary File)</strong>：触れられたら検知できるよう<strong>誘引＋仕掛け</strong>を組み合わせた偽ファイル。</li>
+          <li><strong>ハニートークン (Honey Token)</strong>：ダミーの資格情報・鍵などの<strong>偽データ</strong>。<strong>利用された瞬間に漏洩・盗難の確証</strong>となる指標。</li>
+        </ul>
+
+        <h3>2. ハニートークンの本質</h3>
+        <p>ハニートークン自体は「ただのデータ」だが、正規の文脈外で<strong>使われた時点</strong>で不正利用が確定する。例：ダミーのクラウドアクセスキーが外部から利用されると、ログや通知で漏洩が判明する。</p>
+
+        <h3>3. 歴史的活用例</h3>
+        <ul>
+          <li>軍事・スパイ：偽情報で相手の行動を誘導・観測。</li>
+          <li>1990年代以降：ハニーポット研究の一要素として発展。</li>
+          <li>現代：canary系サービス等でクラウドキーやファイルに容易に適用。</li>
+        </ul>
+
+        <h3>4. 実戦シナリオ</h3>
+        <ul>
+          <li><strong>ハニーポット</strong>：<code>confidential.docx</code> 等の開封で検知する。</li>
+          <li><strong>マルウェア解析</strong>：サンドボックスでハニーファイルへのアクセス傾向を観測する。</li>
+          <li><strong>ランサムウェア検出</strong>：ドライブ直下にカナリアファイル（あるいはカナリアフォルダー）を配置し、ファイル暗号化を検知する。</li>
+          <li><strong>サーバー侵入検知</strong>：<code>.ssh/id_rsa</code> 風ファイルのアクセスを検知する。</li>
+          <li><strong>CTF</strong>：偽フラグや誤誘導用ファイルで出題する。</li>
+        </ul>
+
+        <h3>5. 拡張例（カナリアファイル）</h3>
+        <ul>
+          <li><strong>通知</strong>：開封時に外部通信（教育ではUI擬似表示）。</li>
+          <li><strong>署名</strong>：正規ファイルは署名付き／カナリアは未署名とし、真正性検証で判別。</li>
+          <li><strong>多層配置</strong>：階層や種類で配置し、行動分析。</li>
+        </ul>
+
+        <h3>6. 実務での活用方法</h3>
+        <div class="warning-message" style="margin: 12px 0;">
+          ⚠️ <strong>実務利用時の注意</strong>
+        </div>
+        <p>本ツールで生成されるファイルは、セキュリティツールによる誤検出を避けるため、意図的に「偽物」であることが明示されています。</p>
+        <p><strong>実際のハニーファイル／カナリアファイルとして使用する場合</strong>：</p>
+        <ul>
+          <li>本ツールで生成したファイルを<strong>ベース</strong>として使用</li>
+          <li><code>EXAMPLE_</code>、<code>DUMMY_</code>、<code>[EDUCATIONAL ONLY]</code>などの標識を削除</li>
+          <li>実際の環境に合わせてリアルな内容に編集（組織名、実際のサーバー名、本物らしいAPIキー形式等）</li>
+          <li>適切なパーミッション設定（例：SSH鍵は600、passwdは644）</li>
+          <li>監視・通知システムとの連携設定</li>
+        </ul>
+        <p><strong>重要</strong>：実務では本物と区別がつかないレベルまで編集することが効果的です。</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer">
+      🔗 GitHubリポジトリはこちら（ <a href="https://github.com/ipusiron/canary-file-generator" target="_blank">ipusiron/canary-file-generator</a> ）
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
