@@ -1,11 +1,39 @@
 <!--
 ---
-title: Canary File Generator
-category: deception-security
-difficulty: 1
-description: Educational tool to generate Canary/Honey files and simulate access detection workflow.
-tags: [canary, honeyfile, honeytoken, deception]
-demo: https://ipusiron.github.io/canary-file-generator/
+id: day054
+slug: canary-file-generator
+
+title: "Canary File Generator"
+
+subtitle_ja: "教育用カナリア／ハニーファイル生成ツール"
+subtitle_en: "Educational Canary/Honey File Generator"
+
+description_ja: "カナリアファイル、ハニーファイル、ハニートークンの概念を学べる教育用ツール。攻撃者を誘引するためのダミーファイルを生成し、アクセス検知の流れを擬似体験できます。"
+description_en: "Educational tool for learning about canary files, honey files, and honey tokens. Generate decoy files to lure attackers and simulate access detection workflows."
+
+category_ja:
+  - 欺瞞技術
+  - 侵入検知
+  - ハニーポット
+category_en:
+  - Deception Technology
+  - Intrusion Detection
+  - Honeypot
+
+difficulty: 4
+
+tags:
+  - canary
+  - honeyfile
+  - honeytoken
+  - deception
+  - intrusion-detection
+  - security-awareness
+
+repo_url: "https://github.com/ipusiron/canary-file-generator"
+demo_url: "https://ipusiron.github.io/canary-file-generator/"
+
+hub: true
 ---
 -->
 
@@ -22,14 +50,6 @@ demo: https://ipusiron.github.io/canary-file-generator/
 **Canary File Generator**は、教育用途として「重要そうに見えるファイル（カナリア／ハニーファイル）」を生成し、**誘引と検知**の違い、ハニートークンの意義を学べるツールです。
 
 実ネットワーク送信は行わず、UI上の擬似通知で挙動を確認します。
-
-## ⚠️ 重要な注意事項
-
-**本ツールは教育目的専用です。**
-
-- 生成されるすべての認証情報・パスワード・APIキーは**完全にダミー**です
-- GitHubの自動セキュリティスキャンによる誤検出を避けるため、すべてのサンプルデータに`EXAMPLE`や`DUMMY`の明示的な標識を付けています
-- 学習・研究目的以外での使用は推奨されません
 
 ---
 
@@ -181,6 +201,16 @@ demo: https://ipusiron.github.io/canary-file-generator/
 - **通知**：開封時に外部通信（教育ではUI擬似表示）
 - **署名**：正規ファイルは署名付き／カナリアは未署名 → 真正性検証で判別
 - **多層配置**：階層や種類別に行動分析
+
+---
+
+## ⚠️ 重要な注意事項
+
+**本ツールは教育目的専用です。**
+
+- 生成されるすべての認証情報・パスワード・APIキーは**完全にダミー**です
+- GitHubの自動セキュリティスキャンによる誤検出を避けるため、すべてのサンプルデータに`EXAMPLE`や`DUMMY`の明示的な標識を付けています
+- 学習・研究目的以外での使用は推奨されません
 
 ---
 

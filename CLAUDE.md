@@ -6,23 +6,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Canary File Generator is an educational web tool for learning about canary files, honey files, and honey tokens. It allows users to generate decoy files and simulate access detection workflows without actual network communication.
 
+**Important**: This is an educational-only tool. All generated credentials/API keys are intentionally marked as fake (with `EXAMPLE_`, `DUMMY_`, `[EDUCATIONAL ONLY]` prefixes) to avoid triggering GitHub secret scanning and other security tools.
+
 ## Architecture
 
 This is a client-side web application with no backend:
 
-- **index.html** - Single-page application with tabs for file generation, alerts viewing, and educational content
+- **index.html** - Single-page application with three tabs: 生成 (Generation), アラート (Alerts), 座学 (Study)
 - **script.js** - JavaScript logic handling:
   - Tab navigation
-  - File generation via Blob API (creates text placeholders for txt/pdf/docx/xlsx)
-  - Pseudo alert logging stored in localStorage
-  - UI interactions and toast notifications
-- **style.css** - Styling for the application
+  - File generation via Blob API (all files are plain text regardless of extension)
+  - Preset file templates (`passwords.txt`, `confidential.pdf`, `budget.xlsx`, `secrets.docx`, `id_rsa`, `api_keys.txt`, `passwd`)
+  - Pseudo alert logging with time-based color priority (critical/warning/info/muted)
+  - Dynamic HINT display system
+  - Toast notifications
+- **style.css** - Dark theme styling with CSS variables
 
 ## Development Commands
 
-### Local Development Server
-
-Since this is a static HTML/JS/CSS application, use any HTTP server to avoid CORS issues:
+Since this is a static HTML/JS/CSS application, you can open `index.html` directly in a browser. For a local HTTP server:
 
 ```bash
 # Python 3
@@ -36,14 +38,15 @@ npx http-server -p 8080
 
 No automated tests are configured. Manual testing involves:
 1. Opening the application in a browser
-2. Testing file generation with different file types
+2. Testing file generation with different file types and presets
 3. Verifying pseudo-notification functionality
 4. Checking alert persistence in localStorage
 
 ## Key Implementation Details
 
-- Files are generated using the Blob API with educational placeholder content
+- Files are generated using the Blob API with `text/plain` MIME type regardless of file extension
 - All "detection alerts" are simulated locally - no actual network requests
 - Alerts persist using localStorage under key `cfg_alerts`
-- Generated file metadata temporarily stored in sessionStorage
-- UUID generation is demo-quality (not cryptographically secure)
+- Generated file metadata temporarily stored in sessionStorage under key `cfg_last_generated`
+- Educational tokens follow format: `EDU_[timestamp]_[random]_FAKE`
+- Alert priority is calculated based on time elapsed since alert creation
