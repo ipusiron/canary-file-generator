@@ -3,10 +3,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { read, core, presets } from './load.js';
+import { read, core, presets, load } from './load.js';
 
 const C = core();
 const { PRESETS } = presets();
+const M = load('js/monitor.js').CanaryMonitor;
+const { MESSAGES } = load('js/messages.js').CanaryMessages;
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const TOKEN = 'EDU_VTPVXVR14D2PF2DB_FAKE';
 
@@ -17,7 +19,7 @@ const DOCS = {
     sec: { tech: '🔬 技術的な説明', limits: '⚠️ 注意と限界', refs: '🔗 参考', tree: '📁 ディレクトリー構造', about: '🛠️ このツールについて',
       security: '🔒 セキュリティ', documents: '📚 ドキュメント' },
     head: { place: '| 条件 | トークンを書く場所 |', preset: '| ファイル名 | トークンを書く行 |', name: '| 入力した名前 | 保存される名前の目安 | 画面の指摘 |',
-      color: '| 通知からの経過時間 | 色 |' },
+      color: '| 通知からの経過時間 | 色 |', find: '| 区分 | 条件 | 例 |', monitor: '| OS | 記録する仕組み | 本ツールが出す手順 |' },
     place: { withToken: 'がある', withoutToken: 'がない', notice: '教育用の見出し' },
     labels: { 拡張子なし: 'name.noExt', 先頭のドット: 'name.leadingDot', 区切り文字: 'name.separator', 中身はテキスト: 'name.textContent' },
     none: 'なし', sep: '・',
@@ -31,7 +33,8 @@ const DOCS = {
     sec: { tech: '🔬 Technical notes', limits: '⚠️ Notes and limitations', refs: '🔗 References', tree: '📁 Directory structure',
       about: '🛠️ About this tool', security: '🔒 Security', documents: '📚 Documents' },
     head: { place: '| Condition | Where the token is written |', preset: '| File name | Line that carries the token |',
-      name: '| Name entered | Likely saved name | Notes on the page |', color: '| Time since the alert | Color |' },
+      name: '| Name entered | Likely saved name | Notes on the page |', color: '| Time since the alert | Color |',
+      find: '| Category | Condition | Example |', monitor: '| OS | What records access | Steps the tool gives |' },
     place: { withToken: 'contains', withoutToken: 'has no', notice: 'educational header' },
     labels: { 'no extension': 'name.noExt', 'leading dot': 'name.leadingDot', separator: 'name.separator', 'content is text': 'name.textContent' },
     none: 'None', sep: ', ',
@@ -153,6 +156,35 @@ for (const [lang, d] of Object.entries(DOCS)) {
     assert.deepEqual(nums, [...C.PRIORITY.map(([m]) => m), C.PRIORITY[C.PRIORITY.length - 1][0]]);
   });
 
+  test(`${d.file}: 特定の結果の区分の表は、画面の区分名と同じ順で、例を計算部に通すとその区分になる`, () => {
+    const rows = table(section(d.text, d.sec.tech), d.head.find);
+    const kinds = ['exact', 'variant', 'place', 'near', 'unknown', 'malformed'];
+    assert.deepEqual(rows.map((r) => r[0]), kinds.map((k) => MESSAGES[lang][`kind.${k}`]));
+    const ledger = [{ token: TOKEN, fileName: 'passwords.txt', at: 1, notice: true, place: '/srv/share/passwords.txt', memo: '' }];
+    assert.ok(d.text.includes(TOKEN) && d.text.includes(ledger[0].place));
+    rows.forEach(([, , example], i) => {
+      const r = C.findInText(unquote(example), ledger);
+      assert.deepEqual(r.hits.map((h) => h.kind), [kinds[i]], example);
+    });
+    assert.ok(section(d.text, d.sec.tech).includes(C.MAX_FIND_CHARS.toLocaleString('en-US')));
+    assert.ok(section(d.text, d.sec.tech).includes(String(C.MAX_HITS)));
+  });
+
+  test(`${d.file}: 監視の設定例の表のコマンドは、計算部が出す手順に含まれる。GUID とキーの長さも同じ`, () => {
+    const rows = table(section(d.text, d.sec.tech), d.head.monitor);
+    assert.deepEqual(rows.map((r) => r[0]), ['Linux', 'Windows', 'macOS']);
+    const canary = { token: TOKEN, fileName: 'passwords.txt', at: 1, place: '' };
+    rows.forEach(([, , steps], i) => {
+      const code = M.setup(M.OS_LIST[i], canary).steps.map((s) => s.code).join('\n');
+      const cmds = [...steps.matchAll(/`([^`]+)`/g)].map((m) => m[1]);
+      assert.ok(cmds.length >= 2, steps);
+      for (const c of cmds) assert.ok(code.includes(c), `${M.OS_LIST[i]}: ${c}`);
+    });
+    const tech = section(d.text, d.sec.tech);
+    assert.ok(tech.includes(M.FILE_SYSTEM_GUID));
+    assert.ok(tech.includes(String(M.MAX_KEY_BYTES)) && tech.includes(String(TOKEN.length)));
+  });
+
   test(`${d.file}: 記録の上限・CSP は実装と同じ`, () => {
     assert.ok(section(d.text, d.sec.limits).includes(d.max(C.MAX_ITEMS)), String(C.MAX_ITEMS));
     const csp = read('index.html').match(/http-equiv="Content-Security-Policy"\s+content="([^"]+)"/)[1];
@@ -186,7 +218,7 @@ for (const [lang, d] of Object.entries(DOCS)) {
 test('参考文献の URL は日英で同じ', () => {
   const urls = (d) => [...section(d.text, d.sec.refs).matchAll(/\]\((https:\/\/[^)\s]+)\)/g)].map((m) => m[1]);
   assert.deepEqual(urls(DOCS.en), urls(DOCS.ja));
-  assert.equal(urls(DOCS.ja).length, 8);
+  assert.equal(urls(DOCS.ja).length, 12);
 });
 
 test('docs と docs/en は同じファイルを持ち、見出しの数と参考文献の URL がそろう。互いに言語の切り替えのリンクがある', () => {
@@ -206,13 +238,13 @@ test('docs と docs/en は同じファイルを持ち、見出しの数と参考
   }
 });
 
-test('画像: 参照はすべて実在する。スクリーンショットは日本語版が assets/、英語版が assets/en/ の4枚。どこからも参照しない画像は置かない', () => {
+test('画像: 参照はすべて実在する。スクリーンショットは日本語版が assets/、英語版が assets/en/ の6枚。どこからも参照しない画像は置かない', () => {
   const refs = {};
   for (const [lang, d] of Object.entries(DOCS)) {
     refs[lang] = [...d.text.matchAll(/!\[[^\]]*\]\((assets\/[^)]+)\)/g)].map((m) => m[1]);
     for (const r of refs[lang]) assert.ok(fs.existsSync(path.join(ROOT, r)), r);
     const shots = refs[lang].filter((r) => /screenshot/.test(r));
-    assert.equal(shots.length, 4, lang);
+    assert.equal(shots.length, 6, lang);
     for (const r of shots) {
       assert.match(r, d.shots, r);
       assert.ok(fs.statSync(path.join(ROOT, r)).size <= 300 * 1024, r);

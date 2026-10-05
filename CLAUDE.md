@@ -12,14 +12,17 @@ Canary File Generator is an educational web tool for learning about canary files
 
 Client-side only, no build step, no dependencies. Scripts are classic scripts (not ES modules) so that `index.html` also works from `file://`. Each script puts one object on `globalThis`.
 
-- `index.html` - Three tabs (Generate / Alerts / Learn) using the WAI-ARIA tab pattern. Meta CSP with `connect-src 'none'`
+- `index.html` - Four tabs (Generate / Alerts / Find / Learn) using the WAI-ARIA tab pattern. Meta CSP with `connect-src 'none'`
 - `js/canary-core.js` (`CanaryCore`) - DOM-free logic
   - `makeToken()`: `EDU_` + 16 Crockford Base32 characters (10 bytes from `crypto.getRandomValues`) + `_FAKE`
   - `buildContent()`: replaces every `{{TOKEN}}` in the bait text (or appends `Ref: <token>` when there is none) and `{{DATE}}`; adds the educational header with a `Token:` line when enabled. The token is always written
   - `checkFileName()`: issue codes (`name.*`) and the likely saved name (separators become `_`, leading dots are dropped)
   - `MIME` is `application/octet-stream` so that Chromium/Edge do not append `.txt` to names such as `passwd`
-  - `priority()`: 5 / 30 / 60 minute thresholds; `parseList()` / `normalizeAlert()` / `normalizeCanary()` validate stored JSON
+  - `priority()`: 5 / 30 / 60 minute thresholds; `parseList()` / `normalizeAlert()` / `normalizeCanary()` validate stored JSON (canaries carry optional `place` and `memo`)
+  - `findInText()`: finds tokens (exact / variant / near / unknown / malformed) and ledger locations in pasted text; limits `MAX_FIND_CHARS` and `MAX_HITS`
+  - `ledgerToJson()` / `ledgerFromJson()` / `ledgerToCsv()`: export and import; CSV guards against formula injection
 - `js/presets.js` (`CanaryPresets`) - Seven presets written with `String.raw`; each contains exactly one `{{TOKEN}}`
+- `js/monitor.js` (`CanaryMonitor`) - Monitoring setup steps (auditd syscall rules keyed by the token, Windows `auditpol` by GUID + SACL `ReadData`, macOS `eslogger`) and pseudo logs (auditd SYSCALL/CWD/PATH, event 4663 XML). Step texts are dictionary keys; commands are language-neutral
 - `js/messages.js` (`CanaryMessages`) and `js/i18n.js` (`CanaryI18n`) - Japanese/English dictionaries and static text replacement (`data-i18n`, `data-i18n-attr`). Language: `?lang=` → saved choice → browser language
 - `js/theme-init.js`, `js/theme.js` (`CanaryTheme`) - Light/dark theme
 - `script.js` - DOM handling only. Builds every dynamic element with `textContent` (no `innerHTML`)
@@ -40,7 +43,7 @@ python -m http.server 8000   # then open http://localhost:8000/
 
 ## Testing
 
-- `test/core.test.js`, `test/presets.test.js` - logic, known answers, file name table, preset checks
+- `test/core.test.js`, `test/presets.test.js`, `test/find.test.js`, `test/monitor.test.js` - logic, known answers, file name table, preset checks, finding, ledger export/import, monitoring steps and pseudo logs
 - `test/html.test.js`, `test/contrast.test.js`, `test/messages.test.js`, `test/i18n.test.js`, `test/format.test.js` - CSP, ARIA, dictionaries, contrast, formatting
 - `test/readme.test.js` - README tables are checked against the logic; Japanese/English READMEs and `docs/` vs `docs/en/` must have matching headings, references and directory trees
 
