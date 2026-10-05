@@ -31,6 +31,8 @@ test('日本語の文言は、日本語と英数字のあいだに半角空白�
   for (const [k, v] of Object.entries(MESSAGES.ja)) {
     assert.doesNotMatch(v, bad, k);
     assert.doesNotMatch(v, /ブラウザ(?!ー)|フォルダ(?!ー)|リポジトリ(?!ー)|ディレクトリ(?!ー)|サーバ(?!ー)/, k);
+    // 「わかる」はひらがな、「分ける・分かれる」は漢字
+    assert.doesNotMatch(v, /(?<![自0-9０-９])分か(?!れ)/, k);
   }
 });
 
