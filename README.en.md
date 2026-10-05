@@ -281,17 +281,20 @@ canary-file-generator/
 │   ├── canary-core.js             # Logic (tokens, content, file name checks, record validation)
 │   ├── i18n.js                    # Language selection and replacing the HTML text
 │   ├── messages.js                # Japanese and English text
+│   ├── monitor.js                 # Monitoring setup (auditd, Windows, macOS) and pseudo logs
 │   ├── presets.js                 # Presets (file names and fake data)
 │   ├── theme-init.js              # Applies the saved theme before rendering
 │   └── theme.js                   # Switches between light and dark
 ├── test/                          # Automated tests (node --test)
 │   ├── contrast.test.js           # Color contrast and control sizes
 │   ├── core.test.js               # Logic
+│   ├── find.test.js               # Finding tokens and locations, ledger export and import
 │   ├── format.test.js             # Line length, line endings and control characters
 │   ├── html.test.js               # CSP, tab ARIA, text matching between HTML and dictionary
 │   ├── i18n.test.js               # How the language is chosen
 │   ├── load.js                    # Loads the page scripts into the tests
 │   ├── messages.test.js           # Japanese and English dictionaries
+│   ├── monitor.test.js            # Monitoring setup and pseudo logs
 │   ├── presets.test.js            # Presets
 │   └── readme.test.js             # README tables, headings, images and directory structure
 ├── .gitignore                     # Files excluded from Git

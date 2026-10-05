@@ -190,11 +190,19 @@
   const legacyToken = (v) => (typeof v === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(v) ? v : '');
   const isObject = (x) => x !== null && typeof x === 'object' && !Array.isArray(x);
 
+  // 置き場所のパスとメモは任意。長すぎる・制御文字を含むものは空にする
+  const MAX_PLACE = 260;
+  const MAX_MEMO = 200;
+  const optional = (v, max) => {
+    const s = str(v ?? '', max);
+    return s === null || hasControl(s) ? '' : s;
+  };
+
   function normalizeCanary(x) {
     if (!isObject(x) || !isToken(x.token) || !Number.isFinite(x.at)) return null;
     const fileName = str(x.fileName, 260);
     if (!fileName) return null;
-    return { token: x.token, fileName, at: x.at, notice: x.notice === true };
+    return { token: x.token, fileName, at: x.at, notice: x.notice === true, place: optional(x.place, MAX_PLACE), memo: optional(x.memo, MAX_MEMO) };
   }
 
   // 以前の版の { time: 'YYYY-MM-DD HH:mm:ss', type, ... } も読む
@@ -203,7 +211,7 @@
     const at = Number.isFinite(x.at) ? x.at : parseLocalTime(x.time);
     const fileName = str(x.fileName, 260);
     if (!Number.isFinite(at) || !fileName) return null;
-    return { at, fileName, token: legacyToken(x.token), ua: str(x.ua ?? '', 512) ?? '' };
+    return { at, fileName, token: legacyToken(x.token), ua: str(x.ua ?? '', 512) ?? '', place: optional(x.place, MAX_PLACE) };
   }
 
   // 保存した JSON を読む。配列でない・JSON として読めないときは broken、形の合わない要素は捨てて数える
@@ -223,6 +231,184 @@
   // 末尾に足して、上限を超えたら古いものから捨てる
   const append = (list, item) => [...list, item].slice(-MAX_ITEMS);
 
+  // ===== 特定（ログや流出したテキストから、トークンと置き場所を探す） =====
+  const MAX_FIND_CHARS = 2000000;
+  const MAX_HITS = 500;
+  const MAX_LINES = 20;
+  const SNIPPET = 60;
+  // 大文字小文字・区切りの - ・Crockford の読み替え（I・L→1、O→0）を許して拾う。中身が16文字でないものは「形が崩れている」に分ける
+  const LOOSE_RE = /(?<![0-9A-Za-z])EDU[_-]([0-9A-Za-z]{1,40})[_-]FAKE(?![0-9A-Za-z])/gi;
+
+  function canonicalBody(raw) {
+    const s = raw.toUpperCase().replace(/[IL]/g, '1').replace(/O/g, '0');
+    return /^[0-9A-HJKMNP-TV-Z]{16}$/.test(s) ? s : null;
+  }
+
+  // 16文字のうち、ちょうど1文字だけ違う
+  function differsByOne(a, b) {
+    let d = 0;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i] && ++d > 1) return false;
+    return d === 1;
+  }
+
+  // 位置から行番号（1始まり）を引くための、各行の先頭の位置
+  function lineIndex(text) {
+    const starts = [0];
+    for (let i = text.indexOf('\n'); i >= 0; i = text.indexOf('\n', i + 1)) starts.push(i + 1);
+    const lineOf = (pos) => {
+      let lo = 0;
+      let hi = starts.length - 1;
+      while (lo < hi) {
+        const mid = (lo + hi + 1) >> 1;
+        if (starts[mid] <= pos) lo = mid;
+        else hi = mid - 1;
+      }
+      return lo;
+    };
+    const snippet = (pos, len) => {
+      const i = lineOf(pos);
+      const end = i + 1 < starts.length ? starts[i + 1] - 1 : text.length;
+      const from = Math.max(starts[i], pos - SNIPPET);
+      const to = Math.min(end, pos + len + SNIPPET);
+      return {
+        before: (from > starts[i] ? '…' : '') + text.slice(from, pos).replace(/\r$/, ''),
+        match: text.slice(pos, pos + len),
+        after: text.slice(pos + len, to).replace(/\r$/, '') + (to < end ? '…' : '')
+      };
+    };
+    return { line: (pos) => lineOf(pos) + 1, snippet };
+  }
+
+  function addHit(map, key, base, pos, len, found, idx) {
+    let hit = map.get(key);
+    if (!hit) {
+      hit = { ...base, found: [], count: 0, lines: [], snippet: idx.snippet(pos, len) };
+      map.set(key, hit);
+    }
+    hit.count++;
+    if (hit.found.length < 3 && !hit.found.includes(found)) hit.found.push(found);
+    const line = idx.line(pos);
+    if (hit.lines.length < MAX_LINES && !hit.lines.includes(line)) hit.lines.push(line);
+  }
+
+  // 置き場所のパスは、そのままの形と、JSON などでバックスラッシュを二重にした形の両方で探す。Windows のパスは大文字小文字を区別しない
+  const isWindowsPath = (p) => /^[A-Za-z]:\\/.test(p) || /^\\\\/.test(p);
+
+  function findPlaces(text, canaries, idx, hits) {
+    const lower = text.toLowerCase();
+    for (const c of canaries) {
+      if (!c.place || c.place.length < 4) continue;
+      const win = isWindowsPath(c.place);
+      const hay = win ? lower : text;
+      const forms = [...new Set([c.place, c.place.split('\\').join('\\\\')])].map((f) => (win ? f.toLowerCase() : f));
+      for (const form of forms) {
+        for (let pos = hay.indexOf(form); pos >= 0; pos = hay.indexOf(form, pos + form.length)) {
+          addHit(hits, `p:${c.token}`, { kind: 'place', token: c.token, matches: [c] }, pos, form.length, text.slice(pos, pos + form.length), idx);
+        }
+      }
+    }
+  }
+
+  // 結果の種類: exact（台帳のトークンと同じ）・variant（大文字小文字や I・L・O の書き換えだけ違う）・near（1文字だけ違う台帳のトークンがある）
+  // ・unknown（形は正しいが台帳にない）・malformed（中身が16文字でない、字母にない文字）・place（置き場所のパスが見つかった）
+  function findInText(text, canaries) {
+    const s = String(text ?? '');
+    if (s.length > MAX_FIND_CHARS) return { tooLong: true, hits: [], truncated: false };
+    const byToken = new Map(canaries.map((c) => [c.token, c]));
+    const idx = lineIndex(s);
+    const hits = new Map();
+    let total = 0;
+    let truncated = false;
+    for (const m of s.matchAll(LOOSE_RE)) {
+      if (total >= MAX_HITS) {
+        truncated = true;
+        break;
+      }
+      total++;
+      const found = m[0];
+      const body = canonicalBody(m[1]);
+      if (!body) {
+        addHit(hits, `m:${found.toUpperCase()}`, { kind: 'malformed', token: null, matches: [] }, m.index, found.length, found, idx);
+        continue;
+      }
+      const token = `EDU_${body}_FAKE`;
+      const own = byToken.get(token);
+      if (own) {
+        const kind = found === token ? 'exact' : 'variant';
+        addHit(hits, `${kind}:${token}`, { kind, token, matches: [own] }, m.index, found.length, found, idx);
+      } else {
+        const near = canaries.filter((c) => differsByOne(c.token.slice(4, 20), body));
+        const kind = near.length ? 'near' : 'unknown';
+        addHit(hits, `${kind}:${token}`, { kind, token, matches: near }, m.index, found.length, found, idx);
+      }
+    }
+    findPlaces(s, canaries, idx, hits);
+    return { tooLong: false, hits: [...hits.values()], truncated };
+  }
+
+  // ===== 台帳の書き出しと読み込み =====
+  const LEDGER_FORMAT = 'canary-file-generator/ledger';
+  const MAX_IMPORT_CHARS = 1000000;
+
+  function ledgerToJson(canaries, now = new Date()) {
+    const items = canaries.map((c) => ({
+      token: c.token,
+      fileName: c.fileName,
+      place: c.place || '',
+      memo: c.memo || '',
+      at: c.at,
+      createdAt: new Date(c.at).toISOString(),
+      notice: c.notice === true
+    }));
+    return `${JSON.stringify({ format: LEDGER_FORMAT, version: 1, exportedAt: now.toISOString(), items }, null, 2)}\n`;
+  }
+
+  // 書き出した JSON（またはその items の配列）を読み、トークンが重ならないものだけを足す。古い順に並べ、上限を超えた分は古いものから捨てる
+  function ledgerFromJson(text, existing) {
+    const s = String(text ?? '');
+    if (s.length > MAX_IMPORT_CHARS) return { ok: false, error: 'import.tooLarge' };
+    let value;
+    try {
+      value = JSON.parse(s);
+    } catch {
+      return { ok: false, error: 'import.json' };
+    }
+    const items = Array.isArray(value) ? value : (isObject(value) && value.format === LEDGER_FORMAT && Array.isArray(value.items) ? value.items : null);
+    if (!items) return { ok: false, error: 'import.format' };
+    const have = new Set(existing.map((c) => c.token));
+    const list = existing.slice();
+    let added = 0;
+    let duplicate = 0;
+    let invalid = 0;
+    for (const x of items) {
+      const c = normalizeCanary(x);
+      if (!c) invalid++;
+      else if (have.has(c.token)) duplicate++;
+      else {
+        have.add(c.token);
+        list.push(c);
+        added++;
+      }
+    }
+    list.sort((a, b) => a.at - b.at);
+    const dropped = Math.max(0, list.length - MAX_ITEMS);
+    return { ok: true, items: list.slice(-MAX_ITEMS), added, duplicate, invalid, dropped };
+  }
+
+  // CSV（RFC 4180、改行は CRLF、Excel で文字化けしないように BOM を付ける）。= + - @ などで始まる値は、表計算ソフトが式として
+  // 解釈しないように先頭に ' を付ける（OWASP の CSV Injection の対策）
+  function csvCell(v) {
+    let s = String(v ?? '');
+    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  }
+
+  function ledgerToCsv(canaries) {
+    const rows = [['token', 'fileName', 'place', 'memo', 'createdAt', 'notice']];
+    for (const c of canaries) rows.push([c.token, c.fileName, c.place || '', c.memo || '', new Date(c.at).toISOString(), c.notice ? 'true' : 'false']);
+    return String.fromCharCode(0xfeff) + rows.map((r) => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
+  }
+
   globalThis.CanaryCore = {
     TOKEN_BYTES,
     PLACEHOLDER,
@@ -231,6 +417,12 @@
     MIME,
     MAX_NAME,
     MAX_ITEMS,
+    MAX_PLACE,
+    MAX_MEMO,
+    MAX_FIND_CHARS,
+    MAX_HITS,
+    MAX_IMPORT_CHARS,
+    LEDGER_FORMAT,
     PRIORITY,
     WORDS,
     makeToken,
@@ -247,6 +439,12 @@
     normalizeCanary,
     normalizeAlert,
     parseList,
-    append
+    append,
+    canonicalBody,
+    isWindowsPath,
+    findInText,
+    ledgerToJson,
+    ledgerFromJson,
+    ledgerToCsv
   };
 })();
