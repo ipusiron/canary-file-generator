@@ -107,3 +107,15 @@ test('擬似ログを特定に貼ると、台帳のファイルに戻る（audit
   const r2 = C.findInText(xml, ledger);
   assert.deepEqual(r2.hits.map((h) => `${h.kind}:${h.token}`), ['place:EDU_000G40R40M30E209_FAKE']);
 });
+
+test('監視の設定の手順・指摘・OS の名前の文言は、日英の辞書にある', () => {
+  const { MESSAGES } = load('js/messages.js').CanaryMessages;
+  for (const os of M.OS_LIST) {
+    for (const c of [posix, win, { ...posix, place: '/srv/a b/x' }]) {
+      const s = M.setup(os, c);
+      for (const k of [...s.steps.map((x) => x.key), ...s.issues, `mon.os.${os}`]) {
+        for (const lang of ['ja', 'en']) assert.ok(MESSAGES[lang][k], `${lang} ${k}`);
+      }
+    }
+  }
+});

@@ -36,6 +36,8 @@
       data-i18n="tab.gen">生成</button>
     <button type="button" class="tab-btn" role="tab" id="tab-alerts" data-tab="alerts" aria-controls="panel-alerts" aria-selected="false" tabindex="-1"
       data-i18n="tab.alerts">アラート</button>
+    <button type="button" class="tab-btn" role="tab" id="tab-find" data-tab="find" aria-controls="panel-find" aria-selected="false" tabindex="-1"
+      data-i18n="tab.find">特定</button>
     <button type="button" class="tab-btn" role="tab" id="tab-study" data-tab="study" aria-controls="panel-study" aria-selected="false" tabindex="-1"
       data-i18n="tab.study">座学</button>
   </nav>
@@ -88,6 +90,15 @@ Access code: {{TOKEN}}</textarea>
         <p id="hint" class="hint" aria-live="polite" hidden></p>
       </div>
 
+      <div class="card">
+        <label class="field-label" for="place-path" data-i18n="gen.placeLabel">置く場所のパス（任意）</label>
+        <input type="text" id="place-path" class="text-input mono" maxlength="260" placeholder="/srv/share/passwords.txt" spellcheck="false"
+          autocomplete="off" autocapitalize="off" autocorrect="off">
+        <label class="field-label spaced" for="memo-text" data-i18n="gen.memoLabel">メモ（任意）</label>
+        <input type="text" id="memo-text" class="text-input" maxlength="200" spellcheck="false" autocomplete="off">
+        <p class="help" data-i18n="gen.placeHelp">置き場所とメモは台帳に記録し、監視の設定例と特定に使います。置き場所は「/」で始まるパスか、「C:\」やネットワークの共有（\\server\…）で始まるパスで書きます。</p>
+      </div>
+
       <div class="actions">
         <button type="button" id="btn-generate" class="btn primary" data-i18n="gen.generate">ダウンロード生成</button>
         <button type="button" id="btn-simulate" class="btn" data-i18n="gen.simulate" disabled>（教育用）このファイルの開封を擬似通知</button>
@@ -106,11 +117,35 @@ Access code: {{TOKEN}}</textarea>
 
       <div class="card">
         <h3 data-i18n="ledger.title">生成したファイル（台帳）</h3>
-        <p class="small" data-i18n="ledger.lead">ファイルごとに名前・トークン・生成日時を記録します。トークンがログや流出したテキストの中に見つかれば、どのファイルから出たかがわかります。</p>
+        <p class="small" data-i18n="ledger.lead">ファイルごとに名前・トークン・置き場所・メモ・生成日時を記録します。トークンがログや流出したテキストの中に見つかれば、どのファイルから出たかがわかります（特定タブ）。</p>
         <ul id="ledger-list" class="records"></ul>
         <div class="actions">
+          <button type="button" id="btn-export-json" class="btn small" data-i18n="ledger.exportJson">書き出す（JSON）</button>
+          <button type="button" id="btn-export-csv" class="btn small" data-i18n="ledger.exportCsv">書き出す（CSV）</button>
+          <button type="button" id="btn-import" class="btn small" data-i18n="ledger.import">読み込む（JSON）</button>
           <button type="button" id="btn-clear-ledger" class="btn small" data-i18n="ledger.clear">台帳を消去</button>
         </div>
+        <label class="visually-hidden" for="ledger-file" data-i18n="ledger.fileLabel">読み込む台帳のファイル</label>
+        <input type="file" id="ledger-file" class="file-input" accept=".json,application/json" tabindex="-1">
+        <p class="small muted" data-i18n="ledger.exportHelp">書き出したJSONは、別のブラウザーや端末で読み込めます。CSVは表計算ソフトで見るためのもので、読み込みには使えません。</p>
+      </div>
+
+      <div class="card" id="monitor-card" hidden>
+        <h3 id="monitor-title" tabindex="-1"></h3>
+        <fieldset class="os-choice">
+          <legend data-i18n="mon.osLegend">OS</legend>
+          <input type="radio" name="monitor-os" id="os-linux" value="linux" checked>
+          <label for="os-linux">Linux (auditd)</label>
+          <input type="radio" name="monitor-os" id="os-windows" value="windows">
+          <label for="os-windows">Windows</label>
+          <input type="radio" name="monitor-os" id="os-macos" value="macos">
+          <label for="os-macos">macOS</label>
+        </fieldset>
+        <p id="monitor-path" class="small"></p>
+        <ul id="monitor-issues" class="issues"></ul>
+        <ol id="monitor-steps" class="steps"></ol>
+        <div id="monitor-status" class="status" aria-live="polite"></div>
+        <p class="small muted" data-i18n="mon.note">コマンドは教育用の例です。実際の環境では、管理者の権限で、組織の手順に沿って設定してください。</p>
       </div>
 
       <div class="card">
@@ -119,13 +154,51 @@ Access code: {{TOKEN}}</textarea>
           <span id="log-count" class="small muted"></span>
         </div>
         <p class="small muted" data-i18n="log.legend">色分けは、通知からの経過時間です（1分ごとに更新）。</p>
+        <div class="format-row">
+          <label class="field-label" for="log-format" data-i18n="log.formatLabel">擬似ログの形式</label>
+          <select id="log-format" class="select">
+            <option value="none" data-i18n="log.format.none">表示しない</option>
+            <option value="auditd" data-i18n="log.format.auditd">Linuxのauditd</option>
+            <option value="event4663" data-i18n="log.format.event4663">Windowsのイベント4663</option>
+          </select>
+        </div>
         <ul id="alert-list" class="records"></ul>
         <div class="actions">
+          <button type="button" id="btn-send-find" class="btn small" data-i18n="log.sendFind" disabled>擬似ログを特定タブで調べる</button>
           <button type="button" id="btn-clear-alerts" class="btn small" data-i18n="log.clear">ログをすべて消去</button>
         </div>
       </div>
       <div id="alerts-status" class="status" aria-live="polite"></div>
       <p class="small muted" data-i18n="alerts.storage">このデータはブラウザーのlocalStorageに保存されます。機密情報は含みませんが、気になるときは使い終わったあとに消去してください。</p>
+    </section>
+
+    <!-- ===== 特定 ===== -->
+    <section class="tabpanel" id="panel-find" role="tabpanel" aria-labelledby="tab-find" tabindex="0" hidden>
+      <h2 data-i18n="find.title">ログや流出したテキストから特定する</h2>
+      <p data-i18n="find.lead">ログや、どこかで見つかった文書の写しを貼ると、中のトークンと置き場所のパスから、台帳のどのファイルかを探します。入力はこのページの中だけで処理し、どこにも送りません。</p>
+
+      <div class="card">
+        <label class="field-label" for="find-text" data-i18n="find.inputLabel">調べるテキスト</label>
+        <textarea id="find-text" class="text-area mono" rows="10" spellcheck="false" wrap="off" autocomplete="off"></textarea>
+        <div class="actions">
+          <button type="button" id="btn-find" class="btn primary" data-i18n="find.run">特定する</button>
+          <button type="button" id="btn-find-file" class="btn small" data-i18n="find.file">テキストファイルを読み込む</button>
+          <button type="button" id="btn-find-sample" class="btn small" data-i18n="find.sample">例を入れる</button>
+          <button type="button" id="btn-find-clear" class="btn small" data-i18n="find.clear">クリア</button>
+        </div>
+        <label class="visually-hidden" for="find-file" data-i18n="find.fileLabel">調べるテキストのファイル</label>
+        <input type="file" id="find-file" class="file-input" accept=".txt,.log,.csv,.json,.xml,.md,text/plain" tabindex="-1">
+        <p class="help" data-i18n="find.help">トークンは、大文字小文字の違い、区切りの「-」、読み違えやすいI・L・Oの書き換えを許して探します。1文字だけ違うものは候補として示します。</p>
+      </div>
+      <div id="find-status" class="status" aria-live="polite"></div>
+
+      <div class="card">
+        <div class="label-row">
+          <h3 data-i18n="find.resultTitle">結果</h3>
+          <span id="find-summary" class="small muted" aria-live="polite"></span>
+        </div>
+        <ul id="find-results" class="records"></ul>
+      </div>
     </section>
 
     <!-- ===== 座学 ===== -->
@@ -185,6 +258,7 @@ Access code: {{TOKEN}}</textarea>
 ausearch -k canary -i</pre>
       <p data-i18n="study.monitor.windows">Windows：「オブジェクトアクセスの監査」の「ファイルシステム」を有効にし、ファイルのSACLに読み取りの監査を足すと、開かれたときにイベント4663が記録されます。Sysmonには、ファイルの読み取りのイベントはありません。</p>
       <p data-i18n="study.monitor.mac">macOS 13以降：OSに付属のesloggerで、Endpoint Securityのファイルを開くイベントを記録できます（root権限とフルディスクアクセスが必要）。</p>
+      <p data-i18n="study.monitor.tool">アラートタブの台帳で「監視の設定」を押すと、そのファイルの置き場所に合わせた手順を出します。auditdのキーにはトークンを使うので、ログを特定タブに貼れば、どのファイルが読まれたかを台帳から引けます。</p>
 
       <h3 data-i18n="study.practice.title">7. 実務で使うとき</h3>
       <p data-i18n="study.practice.lead">本ツールが作るファイルは、セキュリティツールの誤検出を避けるため、偽物であることを明示しています。実際のハニーファイル・カナリアファイルとして使うときは、生成したファイルを下書きにして、次の点を調整します。</p>
@@ -205,6 +279,7 @@ ausearch -k canary -i</pre>
 
   <script src="js/canary-core.js"></script>
   <script src="js/presets.js"></script>
+  <script src="js/monitor.js"></script>
   <script src="js/messages.js"></script>
   <script src="js/i18n.js"></script>
   <script src="js/theme.js"></script>
