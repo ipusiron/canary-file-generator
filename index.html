@@ -1,160 +1,213 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="description" content="Canary File Generator - 教育用のカナリアファイル・ハニーファイルを生成し、ハニートークンでどのファイルが開かれたかを突き止める流れを学べるツール">
+  <meta name="author" content="ipusiron">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="data:,">
+  <script src="js/theme-init.js"></script>
   <title>Canary File Generator</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header class="site-header">
-    <h1>Canary File Generator</h1>
-    <p class="subtitle">教育用のカナリア・ハニーファイルを生成し、アクセス検知の流れを学べるミニツール</p>
-    <div class="security-notice">
-      ⚠️ <strong>重要：</strong>本ツールは教育目的専用です。生成される認証情報はすべてダミーです。
+    <div class="header-row">
+      <div class="header-spacer"></div>
+      <h1>Canary File Generator</h1>
+      <div class="header-actions">
+        <button type="button" id="btn-lang" class="icon-btn" data-i18n="ui.langButton" data-i18n-attr="aria-label:ui.langLabel;title:ui.langLabel"
+          aria-label="Switch to English" title="Switch to English">English</button>
+        <button type="button" id="btn-theme" class="icon-btn" aria-label="ダークモードに切り替える" title="ダークモードに切り替える">🌙</button>
+      </div>
     </div>
+    <p class="subtitle" data-i18n="ui.subtitle">教育用のカナリアファイル・ハニーファイルを生成し、ハニートークンでどのファイルが開かれたかを突き止める流れを学べるツール</p>
+    <p class="notice" data-i18n="ui.notice"><strong>重要</strong>：本ツールは教育目的です。生成される認証情報はすべてダミーです。</p>
   </header>
 
+  <noscript><p class="noscript" data-i18n="ui.noscript">このページはJavaScriptで動きます。JavaScriptを有効にしてから開き直してください。</p></noscript>
+
+  <nav class="tabs" role="tablist" data-i18n-attr="aria-label:ui.tabsLabel" aria-label="表示の切り替え">
+    <button type="button" class="tab-btn" role="tab" id="tab-gen" data-tab="gen" aria-controls="panel-gen" aria-selected="true"
+      data-i18n="tab.gen">生成</button>
+    <button type="button" class="tab-btn" role="tab" id="tab-alerts" data-tab="alerts" aria-controls="panel-alerts" aria-selected="false" tabindex="-1"
+      data-i18n="tab.alerts">アラート</button>
+    <button type="button" class="tab-btn" role="tab" id="tab-study" data-tab="study" aria-controls="panel-study" aria-selected="false" tabindex="-1"
+      data-i18n="tab.study">座学</button>
+  </nav>
+
   <main class="container">
-    <nav class="tabs" role="tablist" aria-label="機能タブ">
-      <button class="tab active" data-tab="gen" role="tab" aria-selected="true">生成</button>
-      <button class="tab" data-tab="alerts" role="tab" aria-selected="false">アラート</button>
-      <button class="tab" data-tab="study" role="tab" aria-selected="false">座学</button>
-    </nav>
+    <!-- ===== 生成 ===== -->
+    <section class="tabpanel" id="panel-gen" role="tabpanel" aria-labelledby="tab-gen" tabindex="0">
+      <h2 data-i18n="gen.title">カナリアファイル・ハニーファイルの生成</h2>
+      <p data-i18n="gen.lead">ファイル名と中身を決めてダウンロードすると、ファイルごとに一意のトークン（ハニートークン）を中に書き込みます。生成したファイルは「アラート」タブの台帳に記録され、そこから開封を擬似通知できます。入力はこのページの中だけで処理し、どこにも送りません。</p>
 
-    <!-- 生成タブ（簡易 placeholder） -->
-    <section id="tab-gen" class="tabpanel active" role="tabpanel" aria-labelledby="gen">
       <div class="card">
-        <h2>カナリア／ハニーファイルの生成</h2>
+        <label class="field-label" for="file-name" data-i18n="gen.nameLabel">ファイル名</label>
+        <input type="text" id="file-name" class="text-input mono" placeholder="confidential.pdf" spellcheck="false" autocomplete="off"
+          autocapitalize="off" autocorrect="off">
+        <p id="save-as" class="save-as" aria-live="polite" hidden></p>
+        <ul id="name-issues" class="issues" aria-live="polite"></ul>
 
-        <div class="full-width">
-          <label>ファイル名
-            <input id="fileName" type="text" placeholder="confidential.pdf" />
-          </label>
-          <div id="fileWarning" class="warning-message" style="display: none;">
-            ⚠️ 指定のファイル名で出力しますが、内容はプレーンテキストになります。必要があれば適宜手動でファイルを開けるように調整してください。
+        <div class="presets">
+          <p class="presets-label" id="presets-label" data-i18n="gen.presets">よく狙われるファイル名</p>
+          <div class="preset-buttons" role="group" aria-labelledby="presets-label">
+            <button type="button" class="btn preset-btn mono" data-preset="passwords">passwords.txt</button>
+            <button type="button" class="btn preset-btn mono" data-preset="confidential">confidential.pdf</button>
+            <button type="button" class="btn preset-btn mono" data-preset="budget">budget.xlsx</button>
+            <button type="button" class="btn preset-btn mono" data-preset="secrets">secrets.docx</button>
+            <button type="button" class="btn preset-btn mono" data-preset="idrsa">id_rsa</button>
+            <button type="button" class="btn preset-btn mono" data-preset="apikeys">api_keys.txt</button>
+            <button type="button" class="btn preset-btn mono" data-preset="passwd">passwd</button>
           </div>
         </div>
-
-        <div class="preset-section">
-          <label class="preset-label">よく使うファイル名：</label>
-          <div class="preset-buttons">
-            <button class="preset-btn" data-name="passwords.txt">passwords.txt</button>
-            <button class="preset-btn" data-name="confidential.pdf">confidential.pdf</button>
-            <button class="preset-btn" data-name="budget.xlsx">budget.xlsx</button>
-            <button class="preset-btn" data-name="secrets.docx">secrets.docx</button>
-            <button class="preset-btn" data-name="id_rsa">id_rsa</button>
-            <button class="preset-btn" data-name="api_keys.txt">api_keys.txt</button>
-            <button class="preset-btn" data-name="passwd">passwd</button>
-          </div>
-        </div>
-
-        <div class="full-width">
-          <div class="label-with-checkbox">
-            <label for="fileBody">冒頭テキスト（教育用メッセージ）</label>
-            <label class="checkbox-label">
-              <input type="checkbox" id="includeEducationalMsg" checked />
-              <span>ファイル冒頭に出力する</span>
-            </label>
-          </div>
-          <textarea id="fileBody" rows="2">This is a Canary/Honey file for education. Opening or using this indicates access.</textarea>
-        </div>
-
-        <div class="full-width">
-          <div class="label-with-action">
-            <label for="enticingContent">誘引テキスト（ファイル内容）</label>
-            <button id="dummyTextBtn" class="mini-btn" type="button">ダミーテキストに置き換え</button>
-          </div>
-          <textarea id="enticingContent" rows="10" placeholder="実際のファイルに含まれる、攻撃者を誘引するための偽情報...">## Important Credentials
-Please keep these credentials secure and do not share.</textarea>
-          <div id="hintBox" class="hint" style="display: none;">
-            <span id="hintText"></span>
-          </div>
-        </div>
-
-        <div class="buttons">
-          <button id="generateBtn">ダウンロード生成</button>
-          <button id="simulateOpenBtn" class="secondary">（教育用）開封を擬似通知</button>
-        </div>
-
-        <p class="note">※ 実ネットワーク送信は行いません。UI上で擬似的に「検知」を表示します。</p>
       </div>
+
+      <div class="card">
+        <div class="check-row">
+          <input type="checkbox" id="include-notice" checked>
+          <label for="include-notice" data-i18n="gen.noticeToggle">ファイルの冒頭に、教育用の見出しとメッセージを入れる</label>
+        </div>
+        <label class="field-label" for="notice-text" data-i18n="gen.noticeLabel">冒頭テキスト（教育用メッセージ）</label>
+        <textarea id="notice-text" class="text-area mono" rows="2" spellcheck="false">This is a Canary/Honey file for education. Opening or using this indicates access.</textarea>
+      </div>
+
+      <div class="card">
+        <div class="label-row">
+          <label class="field-label" for="body-text" data-i18n="gen.bodyLabel">誘引テキスト（ファイルの中身）</label>
+          <button type="button" id="btn-dummy" class="btn small" data-i18n="gen.dummy">ダミーテキストに置き換え</button>
+        </div>
+        <textarea id="body-text" class="text-area mono" rows="12" spellcheck="false" wrap="off">## Important Credentials
+Please keep these credentials secure and do not share.
+Access code: {{TOKEN}}</textarea>
+        <p class="help" data-i18n="gen.tokenHelp">{{TOKEN}}と書いた場所にトークンが入ります。1つもなければ、末尾に「Ref: トークン」の1行を足します。{{DATE}}はその日の日付になります。</p>
+        <p id="hint" class="hint" aria-live="polite" hidden></p>
+      </div>
+
+      <div class="actions">
+        <button type="button" id="btn-generate" class="btn primary" data-i18n="gen.generate">ダウンロード生成</button>
+        <button type="button" id="btn-simulate" class="btn" data-i18n="gen.simulate" disabled>（教育用）このファイルの開封を擬似通知</button>
+      </div>
+      <p id="simulate-target" class="small muted" data-i18n="gen.simulateNone">ファイルを生成すると、そのファイルの開封を擬似通知できます。</p>
+      <div id="gen-status" class="status" aria-live="polite"></div>
+      <p class="small muted" data-i18n="gen.note">※ 実際のネットワーク送信は行いません。画面の上で「検知」を擬似的に表示します。</p>
     </section>
 
-    <!-- アラートタブ（簡易 placeholder） -->
-    <section id="tab-alerts" class="tabpanel" role="tabpanel" aria-labelledby="alerts">
+    <!-- ===== アラート ===== -->
+    <section class="tabpanel" id="panel-alerts" role="tabpanel" aria-labelledby="tab-alerts" tabindex="0" hidden>
+      <h2 data-i18n="alerts.title">検知ログ（擬似）</h2>
+      <p data-i18n="alerts.lead">生成したファイルが開かれたことを、擬似的に記録します。実際に検知するには、ファイルの読み取りを記録する仕組みが要ります（座学タブの「6. 監視の例」）。</p>
+      <p id="storage-off" class="note-box warn" data-i18n="alerts.storageOff" hidden>このブラウザーでは保存できないため、記録はこのページを閉じると消えます。</p>
+      <p id="load-problem" class="note-box warn" hidden></p>
+
       <div class="card">
-        <h2>検知ログ（擬似）</h2>
-        <div class="security-notice" style="margin-bottom: 16px;">
-          ⚠️ <strong>注意：</strong>このデータはブラウザーのlocalStorageに保存されます。機密情報は含まれませんが、気になる場合はツール使用後にクリアすることを推奨します。
+        <h3 data-i18n="ledger.title">生成したファイル（台帳）</h3>
+        <p class="small" data-i18n="ledger.lead">ファイルごとに名前・トークン・生成日時を記録します。トークンがログや流出したテキストの中に見つかれば、どのファイルから出たかがわかります。</p>
+        <ul id="ledger-list" class="records"></ul>
+        <div class="actions">
+          <button type="button" id="btn-clear-ledger" class="btn small" data-i18n="ledger.clear">台帳を消去</button>
         </div>
-        <ul id="alertList" class="alerts"></ul>
       </div>
+
+      <div class="card">
+        <div class="label-row">
+          <h3 data-i18n="log.title">検知ログ</h3>
+          <span id="log-count" class="small muted"></span>
+        </div>
+        <p class="small muted" data-i18n="log.legend">色分けは、通知からの経過時間です（1分ごとに更新）。</p>
+        <ul id="alert-list" class="records"></ul>
+        <div class="actions">
+          <button type="button" id="btn-clear-alerts" class="btn small" data-i18n="log.clear">ログをすべて消去</button>
+        </div>
+      </div>
+      <div id="alerts-status" class="status" aria-live="polite"></div>
+      <p class="small muted" data-i18n="alerts.storage">このデータはブラウザーのlocalStorageに保存されます。機密情報は含みませんが、気になるときは使い終わったあとに消去してください。</p>
     </section>
 
-    <!-- 座学タブ：要求どおり全文をHTML化 -->
-    <section id="tab-study" class="tabpanel" role="tabpanel" aria-labelledby="study">
-      <div class="card">
-        <h2>座学：カナリアファイル／ハニーファイル／ハニートークン</h2>
+    <!-- ===== 座学 ===== -->
+    <section class="tabpanel study" id="panel-study" role="tabpanel" aria-labelledby="tab-study" tabindex="0" hidden>
+      <h2 data-i18n="study.title">座学：カナリアファイル・ハニーファイル・ハニートークン</h2>
 
-        <h3>1. 用語</h3>
-        <ul>
-          <li><strong>ダミーファイル (Dummy File)</strong>：代用品・テスト用。誘引・検知の仕掛けは持たない。</li>
-          <li><strong>ハニーファイル (Honey File)</strong>：攻撃者を誘引する「餌」。<u>検知は別仕掛け</u>（監査ログ、外部参照、リンク等）に依存。</li>
-          <li><strong>カナリアファイル (Canary File)</strong>：触れられたら検知できるよう<strong>誘引＋仕掛け</strong>を組み合わせた偽ファイル。</li>
-          <li><strong>ハニートークン (Honey Token)</strong>：ダミーの資格情報・鍵などの<strong>偽データ</strong>。<strong>利用された瞬間に漏洩・盗難の確証</strong>となる指標。</li>
-        </ul>
+      <h3 data-i18n="study.terms.title">1. 用語（本ツールでの区別）</h3>
+      <dl class="terms">
+        <dt data-i18n="study.terms.dummy">ダミーファイル</dt>
+        <dd data-i18n="study.terms.dummyDesc">代用品・テスト用のファイル。誘引や検知の仕掛けは持たない</dd>
+        <dt data-i18n="study.terms.honeyfile">ハニーファイル</dt>
+        <dd data-i18n="study.terms.honeyfileDesc">攻撃者を誘引する「餌」のファイル。本ツールでは、検知の仕掛け（監査ログなど）を別に用意するものをこう呼ぶ</dd>
+        <dt data-i18n="study.terms.canary">カナリアファイル</dt>
+        <dd data-i18n="study.terms.canaryDesc">触れられたら検知できるように、誘引と仕掛けを組み合わせた偽ファイル</dd>
+        <dt data-i18n="study.terms.honeytoken">ハニートークン</dt>
+        <dd data-i18n="study.terms.honeytokenDesc">正規の業務では使われないはずの偽データ（資格情報・鍵・文書・識別子など）。使われた時点で、漏洩や不正利用の確証になる</dd>
+      </dl>
+      <p data-i18n="study.terms.literature">用語の境目は文献によって違います。Yuillほか（2004）はハニーファイルを「攻撃者が触れるとファイルサーバーが警報を出す餌のファイル」と定義し、検知の仕組みまで含めています。Spitzner（2003）はハニートークンに、資格情報だけでなく文書なども含めています。</p>
 
-        <h3>2. ハニートークンの本質</h3>
-        <p>ハニートークン自体は「ただのデータ」だが、正規の文脈外で<strong>使われた時点</strong>で不正利用が確定する。例：ダミーのクラウドアクセスキーが外部から利用されると、ログや通知で漏洩が判明する。</p>
+      <h3 data-i18n="study.essence.title">2. ハニートークンの考え方</h3>
+      <p data-i18n="study.essence.body">ハニートークンそのものはただのデータですが、正規の文脈の外で使われた時点で、不正なアクセスがあったとわかります。たとえば、権限を持たないクラウドのアクセスキーを置いておき、それが使われたことをクラウドの監査ログで知る方法があります。本ツールのトークンも、ファイルごとに一意の識別子です。ログや流出したテキストの中に見つかれば、どのファイルから出たものかがわかります。</p>
 
-        <h3>3. 歴史的活用例</h3>
-        <ul>
-          <li>軍事・スパイ：偽情報で相手の行動を誘導・観測。</li>
-          <li>1990年代以降：ハニーポット研究の一要素として発展。</li>
-          <li>現代：canary系サービス等でクラウドキーやファイルに容易に適用。</li>
-        </ul>
+      <h3 data-i18n="study.history.title">3. 歴史</h3>
+      <ul class="bullets">
+        <li data-i18n="study.history.1988">1988年：Clifford Stollが、侵入者の目を引く偽の文書を置き、誰が読んだかを記録した（論文「Stalking the Wily Hacker」、翌年に書籍『The Cuckoo's Egg』）</li>
+        <li data-i18n="study.history.1992">1992年：Bill Cheswickが、侵入者に偽のpasswdを渡して行動を観察した記録を発表した（「An Evening with Berferd」）</li>
+        <li data-i18n="study.history.1999">1999年：The Honeynet Projectが発足した</li>
+        <li data-i18n="study.history.2003">2003年：Augusto Paes de Barrosが「ハニートークン」という語を使い、Lance Spitznerの記事で広まった</li>
+        <li data-i18n="study.history.2004">2004年：Yuillほかが、ファイルサーバーで警報を出すハニーファイルを論文にまとめた</li>
+        <li data-i18n="study.history.2009">2009年：Bowenほかが、偽の認証情報とビーコンを入れたデコイ文書で、内部の攻撃者を検知する仕組みを発表した</li>
+        <li data-i18n="study.history.2013">2013年：JuelsとRivestが、偽のパスワード（Honeywords）でパスワードの漏洩を検知する方法を提案した</li>
+        <li data-i18n="study.history.2015">2015年：ThinkstがCanarytokensを公開した</li>
+      </ul>
+      <p><a href="https://github.com/ipusiron/canary-file-generator/blob/main/docs/HISTORY.md" target="_blank" rel="noopener noreferrer"
+        data-i18n="study.history.more" data-i18n-attr="href:link.history">詳しい年表（docs/HISTORY.md）</a></p>
 
-        <h3>4. 実戦シナリオ</h3>
-        <ul>
-          <li><strong>ハニーポット</strong>：<code>confidential.docx</code> 等の開封で検知する。</li>
-          <li><strong>マルウェア解析</strong>：サンドボックスでハニーファイルへのアクセス傾向を観測する。</li>
-          <li><strong>ランサムウェア検出</strong>：ドライブ直下にカナリアファイル（あるいはカナリアフォルダー）を配置し、ファイル暗号化を検知する。</li>
-          <li><strong>サーバー侵入検知</strong>：<code>.ssh/id_rsa</code> 風ファイルのアクセスを検知する。</li>
-          <li><strong>CTF</strong>：偽フラグや誤誘導用ファイルで出題する。</li>
-        </ul>
+      <h3 data-i18n="study.scenarios.title">4. 使われる場面</h3>
+      <ul class="bullets">
+        <li data-i18n="study.scenarios.honeypot">ハニーポット：confidential.docxのような名前のファイルを置き、開かれたことを検知する</li>
+        <li data-i18n="study.scenarios.malware">マルウェア解析：サンドボックスにハニーファイルを置き、マルウェアがどのファイルを探すかを観察する</li>
+        <li data-i18n="study.scenarios.ransomware">ランサムウェアの検知：ドライブの直下などにカナリアファイルを置き、書き換えを検知する。一部のEDR（Elastic Defend、Check Point Harmony Endpoint、Huntressなど）は、この仕組みを製品に組み込んでいる</li>
+        <li data-i18n="study.scenarios.server">サーバーへの侵入の検知：.ssh/id_rsaのような名前のファイルへのアクセスを検知する</li>
+        <li data-i18n="study.scenarios.ctf">CTF：偽のフラグや、回り道をさせるファイルで出題する</li>
+      </ul>
 
-        <h3>5. 拡張例（カナリアファイル）</h3>
-        <ul>
-          <li><strong>通知</strong>：開封時に外部通信（教育ではUI擬似表示）。</li>
-          <li><strong>署名</strong>：正規ファイルは署名付き／カナリアは未署名とし、真正性検証で判別。</li>
-          <li><strong>多層配置</strong>：階層や種類で配置し、行動分析。</li>
-        </ul>
+      <h3 data-i18n="study.ext.title">5. 発展</h3>
+      <ul class="bullets">
+        <li data-i18n="study.ext.notify">通知：開いたときに外部へ通信させて知らせる（本ツールは通信せず、画面の上の擬似通知だけ）</li>
+        <li data-i18n="study.ext.sign">署名：正規のファイルには署名を付け、カナリアには付けない。真正性を確かめれば区別できる</li>
+        <li data-i18n="study.ext.layers">多層配置：場所や種類を変えて置き、どこまで入り込まれたかを見る</li>
+      </ul>
 
-        <h3>6. 実務での活用方法</h3>
-        <div class="warning-message" style="margin: 12px 0;">
-          ⚠️ <strong>実務利用時の注意</strong>
-        </div>
-        <p>本ツールで生成されるファイルは、セキュリティツールによる誤検出を避けるため、意図的に「偽物」であることが明示されています。</p>
-        <p><strong>実際のハニーファイル／カナリアファイルとして使用する場合</strong>：</p>
-        <ul>
-          <li>本ツールで生成したファイルを<strong>ベース</strong>として使用</li>
-          <li><code>EXAMPLE_</code>、<code>DUMMY_</code>、<code>[EDUCATIONAL ONLY]</code>などの標識を削除</li>
-          <li>実際の環境に合わせてリアルな内容に編集（組織名、実際のサーバー名、本物らしいAPIキー形式等）</li>
-          <li>適切なパーミッション設定（例：SSH鍵は600、passwdは644）</li>
-          <li>監視・通知システムとの連携設定</li>
-        </ul>
-        <p><strong>重要</strong>：実務では本物と区別がつかないレベルまで編集することが効果的です。</p>
-      </div>
+      <h3 data-i18n="study.monitor.title">6. 監視の例</h3>
+      <p data-i18n="study.monitor.lead">ファイルを置くだけでは検知できません。ファイルの読み取りを記録する仕組みと組み合わせます。</p>
+      <p data-i18n="study.monitor.linux">Linux（auditd）：次のルールで、ファイルを読み取りで開いた操作を記録し、キー（canary）で検索します。-wと-pの書き方は互換のためのもので、manでは非推奨とされています。</p>
+      <pre class="code mono">auditctl -a always,exit -F arch=b64 -F path=/srv/share/passwords.txt -F perm=r -k canary
+ausearch -k canary -i</pre>
+      <p data-i18n="study.monitor.windows">Windows：「オブジェクトアクセスの監査」の「ファイルシステム」を有効にし、ファイルのSACLに読み取りの監査を足すと、開かれたときにイベント4663が記録されます。Sysmonには、ファイルの読み取りのイベントはありません。</p>
+      <p data-i18n="study.monitor.mac">macOS 13以降：OSに付属のesloggerで、Endpoint Securityのファイルを開くイベントを記録できます（root権限とフルディスクアクセスが必要）。</p>
+
+      <h3 data-i18n="study.practice.title">7. 実務で使うとき</h3>
+      <p data-i18n="study.practice.lead">本ツールが作るファイルは、セキュリティツールの誤検出を避けるため、偽物であることを明示しています。実際のハニーファイル・カナリアファイルとして使うときは、生成したファイルを下書きにして、次の点を調整します。</p>
+      <ul class="bullets">
+        <li data-i18n="study.practice.marks">EXAMPLE_・DUMMY_・[EDUCATIONAL ONLY]などの標識を外す（トークンは残す）</li>
+        <li data-i18n="study.practice.env">組織名・サーバー名・日付などを、置く環境に合わせる</li>
+        <li data-i18n="study.practice.perm">ファイルの権限をそろえる（例：SSHの秘密鍵は600、passwdは644）</li>
+        <li data-i18n="study.practice.monitor">読み取りの監視と通知を設定する（6. 監視の例）</li>
+        <li data-i18n="study.practice.keys">本物の形式の鍵を置くと、GitHubなどのsecret scanningで発行元に通知されることがある。形式を崩した値のままにするか、置く場所を確かめる</li>
+      </ul>
+      <p data-i18n="study.practice.note">置く環境に合わせて本物と見分けがつかないものほど、攻撃者は手を出しやすくなります。</p>
     </section>
   </main>
 
-  <footer>
-    <div class="footer">
-      🔗 GitHubリポジトリはこちら（ <a href="https://github.com/ipusiron/canary-file-generator" target="_blank">ipusiron/canary-file-generator</a> ）
-    </div>
+  <footer class="site-footer">
+    <a href="https://github.com/ipusiron/canary-file-generator" target="_blank" rel="noopener noreferrer" data-i18n="ui.repo">GitHubリポジトリー（ipusiron/canary-file-generator）</a>
   </footer>
 
+  <script src="js/canary-core.js"></script>
+  <script src="js/presets.js"></script>
+  <script src="js/messages.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/theme.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
