@@ -50,6 +50,8 @@
     'hint.idrsa': 'SSHの秘密鍵は、権限を600にして置くと本物らしく見えます。',
     'hint.apikeys': 'APIキーを本物の形式に合わせると、公開の場所に置いたときに、secret scanningで発行元へ通知されることがあります。本ツールの値は、形式を崩した偽物です。',
     'hint.passwd': '/etc/passwdの権限はふつう644です。最後の行のコメント欄（第5欄）にトークンが入ります。',
+    'hint.awscred': '先頭のドットとフォルダーは、ブラウザーのダウンロードでは保てません。下の「置き場所のフォルダー構造ごとZIPにまとめる」を使うと、~/.aws/credentialsの形のまま渡せます。',
+    'hint.dotenv': '.envは先頭のドットが外れて保存されます。ZIPにまとめるか、保存したあとに名前を戻してください。トークンはINTERNAL_API_TOKENの値に入ります。',
     'hint.dummy': '大きなファイルで誘引したいときは、Linuxのdd・fallocate・truncateで、指定した大きさのファイルを作れます。',
 
     'issue.name.separator': '「/」と「\\」は、ブラウザーが「_」に置き換えて保存します。フォルダーの中に置くファイルは、保存したあとに移してください。',
@@ -286,6 +288,9 @@
     'hint.apikeys': 'If API keys follow a real format, secret scanning may notify the issuer when the file lands in a public place. '
       + 'The values in this tool are fakes whose format is deliberately broken.',
     'hint.passwd': '/etc/passwd usually has permission 644. The token goes into the comment field (the fifth field) of the last line.',
+    'hint.awscred': 'A leading dot and folders cannot survive a browser download. '
+      + 'Use "Pack into a ZIP with the folder structure of the location" below to hand it over as ~/.aws/credentials.',
+    'hint.dotenv': '.env loses its leading dot when saved. Pack it into a ZIP, or rename it after saving. The token goes into the value of INTERNAL_API_TOKEN.',
     'hint.dummy': 'To lure with a large file, Linux dd, fallocate and truncate can create a file of any size you specify.',
 
     'issue.name.separator': 'Browsers replace "/" and "\\" with "_". Move the file into its folder after saving it.',

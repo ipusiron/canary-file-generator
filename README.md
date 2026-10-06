@@ -108,7 +108,7 @@ Canary File Generatorは、攻撃者の目を引く「重要そうなファイ�
 
 ### 生成
 
-- ファイル名を入れるか、よく狙われるファイル名のプリセット（7つ）から選ぶ
+- ファイル名を入れるか、よく狙われるファイル名のプリセット（9つ）から選ぶ
 - 誘引テキスト（ファイルの中身）を書く。プリセットを選ぶと、偽データの入った中身が入る。ダミーテキスト（Lorem ipsum風の英文）にも置き換えられる
 - ファイルの冒頭に、教育用の見出しとメッセージを入れるかを選ぶ
 - ダウンロードすると、ファイルごとに一意のトークンを書き込む。教育用の見出しを外しても、トークンは必ず入る
@@ -182,6 +182,8 @@ Canary File Generatorは、攻撃者の目を引く「重要そうなファイ�
 | id_rsa | `Key-ID: {{TOKEN}}` |
 | api_keys.txt | `{{TOKEN}}` |
 | passwd | `svc_report:x:1006:1006:{{TOKEN}}:/var/lib/report:/usr/sbin/nologin` |
+| .aws/credentials | `# owner: {{TOKEN}}` |
+| .env | `INTERNAL_API_TOKEN={{TOKEN}}` |
 
 api_keys.txtは「Internal Service Token:」の次の行、passwdは最後の行のコメント欄（第5欄）にトークンが入ります。
 
@@ -385,6 +387,7 @@ canary-file-generator/
 │   └── SCENARIOS.md               # 実戦シナリオ（10の場面）
 ├── js/                            # 画面が読むスクリプト
 │   ├── canary-core.js             # 計算部（トークン・本文・ファイル名の検査・記録の検証）
+│   ├── formats.js                 # Word・Excel・PDF・ZIPを組み立てる
 │   ├── i18n.js                    # 言語の選択と、HTMLの文言の差し替え
 │   ├── messages.js                # 日本語・英語の文言
 │   ├── monitor.js                 # 監視の設定例（auditd・Windows・macOS）と擬似ログ
@@ -396,6 +399,7 @@ canary-file-generator/
 │   ├── core.test.js               # 計算部
 │   ├── find.test.js               # 特定（トークンと置き場所）と台帳の書き出し・読み込み
 │   ├── format.test.js             # 行の長さ・改行・制御文字
+│   ├── formats.test.js            # ZIP・Word・Excel・PDFの組み立て
 │   ├── html.test.js               # CSP・タブのARIA・文言とHTMLの一致
 │   ├── i18n.test.js               # 言語の決め方
 │   ├── load.js                    # 画面と同じスクリプトをテストに読み込む

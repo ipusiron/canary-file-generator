@@ -69,7 +69,7 @@ Where the lines fall depends on the source. Yuill et al. (2004) define a honeyfi
 
 ### Generate
 
-- Type a file name, or pick one of seven presets of file names that attackers look for
+- Type a file name, or pick one of nine presets of file names that attackers look for
 - Write the bait text (the file content). A preset fills in content with fake data. You can also replace it with dummy text (Lorem ipsum style)
 - Choose whether to put an educational header and message at the top of the file
 - Downloading writes a unique token into each file. The token is always written, even without the educational header
@@ -143,6 +143,8 @@ A token looks like `EDU_` + 16 characters + `_FAKE`. The 16 characters are 10 by
 | id_rsa | `Key-ID: {{TOKEN}}` |
 | api_keys.txt | `{{TOKEN}}` |
 | passwd | `svc_report:x:1006:1006:{{TOKEN}}:/var/lib/report:/usr/sbin/nologin` |
+| .aws/credentials | `# owner: {{TOKEN}}` |
+| .env | `INTERNAL_API_TOKEN={{TOKEN}}` |
 
 In api_keys.txt the token is on the line after "Internal Service Token:", and in passwd it is in the comment field (the fifth field) of the last line.
 
@@ -346,6 +348,7 @@ canary-file-generator/
 │   └── SCENARIOS.md               # Scenarios (ten situations)
 ├── js/                            # Scripts loaded by the page
 │   ├── canary-core.js             # Logic (tokens, content, file name checks, record validation)
+│   ├── formats.js                 # Builds Word, Excel, PDF and ZIP files
 │   ├── i18n.js                    # Language selection and replacing the HTML text
 │   ├── messages.js                # Japanese and English text
 │   ├── monitor.js                 # Monitoring setup (auditd, Windows, macOS) and pseudo logs
@@ -357,6 +360,7 @@ canary-file-generator/
 │   ├── core.test.js               # Logic
 │   ├── find.test.js               # Finding tokens and locations, ledger export and import
 │   ├── format.test.js             # Line length, line endings and control characters
+│   ├── formats.test.js            # Building ZIP, Word, Excel and PDF files
 │   ├── html.test.js               # CSP, tab ARIA, text matching between HTML and dictionary
 │   ├── i18n.test.js               # How the language is chosen
 │   ├── load.js                    # Loads the page scripts into the tests
