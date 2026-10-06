@@ -7,9 +7,9 @@ const { PRESETS, byId } = presets();
 const BS = String.fromCharCode(92);
 const TOKEN = 'EDU_VTPVXVR14D2PF2DB_FAKE';
 
-test('プリセットは7つ。名前と id は重ならない', () => {
+test('プリセットは9つ。名前と id は重ならない', () => {
   assert.deepEqual(PRESETS.map((p) => p.name),
-    ['passwords.txt', 'confidential.pdf', 'budget.xlsx', 'secrets.docx', 'id_rsa', 'api_keys.txt', 'passwd']);
+    ['passwords.txt', 'confidential.pdf', 'budget.xlsx', 'secrets.docx', 'id_rsa', 'api_keys.txt', 'passwd', '.aws/credentials', '.env']);
   assert.equal(new Set(PRESETS.map((p) => p.id)).size, PRESETS.length);
   assert.equal(byId('passwd').name, 'passwd');
   assert.equal(byId('nothing'), null);

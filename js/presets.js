@@ -166,8 +166,53 @@ jenkins:x:1003:1003:Jenkins CI:/var/lib/jenkins:/bin/bash
 monitoring:x:1004:1004:Monitoring Service:/home/monitoring:/bin/false
 backup_svc:x:1005:1005:Backup Service Account:/var/backup:/bin/sh
 svc_report:x:1006:1006:{{TOKEN}}:/var/lib/report:/usr/sbin/nologin`
+    },
+    {
+      id: 'awscred',
+      name: '.aws/credentials',
+      body: R`# [DUMMY DATA - EDUCATIONAL PURPOSE ONLY]
+# owner: {{TOKEN}}
+[default]
+aws_access_key_id = AKIAIOSFODNN7EXAMPLE
+aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+
+[backup]
+aws_access_key_id = AKIA_EXAMPLE_NOT_REAL
+aws_secret_access_key = EXAMPLE_SECRET_NOT_REAL_FOR_EDUCATION`
+    },
+    {
+      id: 'dotenv',
+      name: '.env',
+      body: R`# [DUMMY DATA - EDUCATIONAL PURPOSE ONLY]
+APP_ENV=production
+APP_URL=https://app.example.internal
+DB_HOST=db.example.internal
+DB_USER=app_admin
+DB_PASSWORD=EXAMPLE_NOT_REAL_PASSWORD
+SMTP_PASSWORD=EXAMPLE_NOT_REAL_SMTP
+INTERNAL_API_TOKEN={{TOKEN}}`
     }
   ];
 
-  globalThis.CanaryPresets = { PRESETS, byId: (id) => PRESETS.find((p) => p.id === id) || null };
+  // 一式（ZIP にフォルダー構造ごとまとめる）。place は台帳に記録する置き場所、format は中身の形式
+  const KITS = [
+    {
+      id: 'linuxHome',
+      files: [
+        { preset: 'idrsa', place: '/home/deploy/.ssh/id_rsa', format: 'text' },
+        { preset: 'awscred', place: '/home/deploy/.aws/credentials', format: 'text' },
+        { preset: 'dotenv', place: '/home/deploy/app/.env', format: 'text' }
+      ]
+    },
+    {
+      id: 'winShare',
+      files: [
+        { preset: 'budget', place: 'C:\\Share\\Finance\\budget.xlsx', format: 'xlsx' },
+        { preset: 'secrets', place: 'C:\\Share\\HR\\secrets.docx', format: 'docx' },
+        { preset: 'passwords', place: 'C:\\Share\\IT\\passwords.txt', format: 'text' }
+      ]
+    }
+  ];
+
+  globalThis.CanaryPresets = { PRESETS, KITS, byId: (id) => PRESETS.find((p) => p.id === id) || null };
 })();

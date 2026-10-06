@@ -139,8 +139,11 @@
   const TEXT_EXT = ['txt', 'log', 'csv', 'md', 'conf', 'cfg', 'ini', 'env', 'json', 'yml', 'yaml', 'xml', 'sql', 'sh', 'pem', 'key'];
   const ISSUE_LEVEL = {
     'name.separator': 'warn', 'name.invalidChar': 'warn', 'name.leadingDot': 'warn', 'name.trailingDot': 'warn',
-    'name.reserved': 'warn', 'name.blockedExt': 'warn', 'name.long': 'warn', 'name.textContent': 'info', 'name.noExt': 'info'
+    'name.reserved': 'warn', 'name.blockedExt': 'warn', 'name.long': 'warn', 'name.textContent': 'info', 'name.noExt': 'info',
+    'name.formatMismatch': 'info'
   };
+  // 中身の形式（formats.js）と、その形式の拡張子
+  const FORMAT_EXT = { docx: 'docx', xlsx: 'xlsx', pdf: 'pdf' };
 
   // 名前の最後の部分の拡張子（小文字）。先頭のドットだけの名前（.env）は拡張子なし
   function extOf(name) {
@@ -154,8 +157,9 @@
     return c < 32 || c === 127;
   });
 
-  // 名前を検査する。saveAs は保存される名前の目安（区切りを _ に、先頭のドットを外す。Chromium・Firefox の実測と同じ）
-  function checkFileName(input) {
+  // 名前を検査する。saveAs は保存される名前の目安（区切りを _ に、先頭のドットを外す。Chromium・Firefox の実測と同じ）。
+  // format は中身の形式（text・docx・xlsx・pdf）。テキストなら「中身はテキスト」、ほかの形式なら拡張子との食い違いを指摘する
+  function checkFileName(input, format = 'text') {
     const raw = String(input ?? '').trim();
     const name = raw || DEFAULT_NAME;
     const codes = [];
@@ -169,7 +173,11 @@
     if (BLOCKED_EXT.includes(ext)) codes.push('name.blockedExt');
     if (name.length > MAX_NAME) codes.push('name.long');
     if (!ext) codes.push('name.noExt');
-    else if (!TEXT_EXT.includes(ext) && !BLOCKED_EXT.includes(ext)) codes.push('name.textContent');
+    if (FORMAT_EXT[format]) {
+      if (ext !== FORMAT_EXT[format]) codes.push('name.formatMismatch');
+    } else if (ext && !TEXT_EXT.includes(ext) && !BLOCKED_EXT.includes(ext)) {
+      codes.push('name.textContent');
+    }
     const saveAs = name.replace(/[/\\]/g, '_').replace(/^\.+/, '');
     return { name, defaulted: !raw, ext, saveAs, issues: codes.map((code) => ({ code, level: ISSUE_LEVEL[code] })) };
   }

@@ -137,6 +137,16 @@ test('ファイル名の検査と、保存される名前の目安（2026-10-06 
   assert.deepEqual(ctrl.issues.map((x) => x.code), ['name.invalidChar']);
 });
 
+test('中身の形式を渡すと、テキストのときだけ「中身はテキスト」、ほかの形式では拡張子との食い違いを指摘する', () => {
+  const codes = (name, f) => C.checkFileName(name, f).issues.map((x) => x.code);
+  assert.deepEqual(codes('budget.xlsx', 'text'), ['name.textContent']);
+  assert.deepEqual(codes('budget.xlsx', 'xlsx'), []);
+  assert.deepEqual(codes('budget.xlsx', 'docx'), ['name.formatMismatch']);
+  assert.deepEqual(codes('passwd', 'pdf'), ['name.noExt', 'name.formatMismatch']);
+  assert.deepEqual(codes('notes.txt', 'text'), []);
+  assert.equal(C.checkFileName('notes.txt', 'docx').issues[0].level, 'info');
+});
+
 test('保存のときの MIME は、拡張子を足されない application/octet-stream', () => {
   assert.equal(C.MIME, 'application/octet-stream');
 });

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Canary File Generator is an educational web tool for learning about canary files, honey files and honeytokens. It generates decoy files that carry a unique token, records them in a ledger and simulates "opened" alerts, all without network access.
+Canary File Generator is an educational web tool for learning about canary files, honey files and honeytokens. It generates decoy files that carry a unique token (plain text, or Word / Excel / PDF files that really open, optionally packed into a ZIP with the folder structure), records them in a ledger and simulates "opened" alerts, all without network access.
 
 **Important**: This is an educational tool. All credentials in the presets are intentionally fake and marked with `EXAMPLE_`, `DUMMY_`, `FAKE` or `[EDUCATIONAL ONLY]`, so that GitHub secret scanning and similar tools do not flag them. Do not add keys in real provider formats (the only exception is AWS's documented example key `AKIAIOSFODNN7EXAMPLE`).
 
@@ -16,13 +16,14 @@ Client-side only, no build step, no dependencies. Scripts are classic scripts (n
 - `js/canary-core.js` (`CanaryCore`) - DOM-free logic
   - `makeToken()`: `EDU_` + 16 Crockford Base32 characters (10 bytes from `crypto.getRandomValues`) + `_FAKE`
   - `buildContent()`: replaces every `{{TOKEN}}` in the bait text (or appends `Ref: <token>` when there is none) and `{{DATE}}`; adds the educational header with a `Token:` line when enabled. The token is always written
-  - `checkFileName()`: issue codes (`name.*`) and the likely saved name (separators become `_`, leading dots are dropped)
+  - `checkFileName(input, format)`: issue codes (`name.*`) and the likely saved name (separators become `_`, leading dots are dropped). `name.textContent` only for text content; `name.formatMismatch` when a Word/Excel/PDF format does not match the extension
   - `MIME` is `application/octet-stream` so that Chromium/Edge do not append `.txt` to names such as `passwd`
   - `priority()`: 5 / 30 / 60 minute thresholds; `parseList()` / `normalizeAlert()` / `normalizeCanary()` validate stored JSON (canaries carry optional `place` and `memo`)
   - `findInText()`: finds tokens (exact / variant / near / unknown / malformed) and ledger locations in pasted text; limits `MAX_FIND_CHARS` and `MAX_HITS`
   - `ledgerToJson()` / `ledgerFromJson()` / `ledgerToCsv()`: export and import; CSV guards against formula injection
-- `js/presets.js` (`CanaryPresets`) - Seven presets written with `String.raw`; each contains exactly one `{{TOKEN}}`
+- `js/presets.js` (`CanaryPresets`) - Nine presets written with `String.raw`; each contains exactly one `{{TOKEN}}`. `KITS` (`linuxHome`, `winShare`) list preset / place / format for the ZIP kits
 - `js/monitor.js` (`CanaryMonitor`) - Monitoring setup steps (auditd syscall rules keyed by the token, Windows `auditpol` by GUID + SACL `ReadData`, macOS `eslogger`) and pseudo logs (auditd SYSCALL/CWD/PATH, event 4663 XML). Step texts are dictionary keys; commands are language-neutral
+- `js/formats.js` (`CanaryFormats`) - Builds the bytes of the downloads: stored ZIP (own CRC-32, UTF-8 name flag, MS-DOS times), minimal OOXML `.docx` / `.xlsx` (token in the body and in `dc:identifier`), PDF 1.4 (Courier, ASCII only, `PDF_WRAP` / `PDF_PAGE_LINES`, token in `Subject`). `formatFor()` resolves "auto" from the extension; `zipPathFromPlace()` drops the drive letter and rejects `..`
 - `js/messages.js` (`CanaryMessages`) and `js/i18n.js` (`CanaryI18n`) - Japanese/English dictionaries and static text replacement (`data-i18n`, `data-i18n-attr`). Language: `?lang=` → saved choice → browser language
 - `js/theme-init.js`, `js/theme.js` (`CanaryTheme`) - Light/dark theme
 - `script.js` - DOM handling only. Builds every dynamic element with `textContent` (no `innerHTML`)
@@ -43,7 +44,7 @@ python -m http.server 8000   # then open http://localhost:8000/
 
 ## Testing
 
-- `test/core.test.js`, `test/presets.test.js`, `test/find.test.js`, `test/monitor.test.js` - logic, known answers, file name table, preset checks, finding, ledger export/import, monitoring steps and pseudo logs
+- `test/core.test.js`, `test/presets.test.js`, `test/find.test.js`, `test/monitor.test.js`, `test/formats.test.js` - logic, known answers, file name table, preset checks, finding, ledger export/import, monitoring steps and pseudo logs, ZIP/OOXML/PDF structure (CRC-32 check value, parsed back in the test)
 - `test/html.test.js`, `test/contrast.test.js`, `test/messages.test.js`, `test/i18n.test.js`, `test/format.test.js` - CSP, ARIA, dictionaries, contrast, formatting
 - `test/readme.test.js` - README tables are checked against the logic; Japanese/English READMEs and `docs/` vs `docs/en/` must have matching headings, references and directory trees
 
