@@ -160,8 +160,8 @@ test('通知の記録: 形の合わない要素は捨てる。以前の版の形
   assert.equal(r.broken, false);
   assert.equal(r.dropped, 6);
   assert.deepEqual(r.items, [
-    { at: new Date(2026, 0, 2, 3, 4, 5).getTime(), fileName: 'a.txt', token: 'EDU_MUVRAEVL_2CSF6MDFQ03_FAKE', ua: 'UA' },
-    { at: 1, fileName: '<img src=x onerror=alert(1)>', token: '', ua: '<script>' }
+    { at: new Date(2026, 0, 2, 3, 4, 5).getTime(), fileName: 'a.txt', token: 'EDU_MUVRAEVL_2CSF6MDFQ03_FAKE', ua: 'UA', place: '' },
+    { at: 1, fileName: '<img src=x onerror=alert(1)>', token: '', ua: '<script>', place: '' }
   ]);
 });
 
@@ -175,8 +175,16 @@ test('記録の JSON が読めない・配列でないときは broken。空な�
 test('台帳: トークンの形式・日時・ファイル名がそろったものだけを読む', () => {
   const ok = { token: TOKEN, fileName: 'passwd', at: 5, notice: true, extra: 'x' };
   const r = C.parseList(JSON.stringify([ok, { ...ok, token: 'EDU_X_FAKE' }, { ...ok, at: 'now' }, { ...ok, fileName: '' }]), C.normalizeCanary);
-  assert.deepEqual(r.items, [{ token: TOKEN, fileName: 'passwd', at: 5, notice: true }]);
+  assert.deepEqual(r.items, [{ token: TOKEN, fileName: 'passwd', at: 5, notice: true, place: '', memo: '' }]);
   assert.equal(r.dropped, 3);
+});
+
+test('台帳: 置き場所とメモは任意。長すぎる・制御文字を含む・文字列でないものは空にする（記録そのものは残す）', () => {
+  const base = { token: TOKEN, fileName: 'passwd', at: 5 };
+  const pick = (x) => { const c = C.normalizeCanary({ ...base, ...x }); return [c.place, c.memo]; };
+  assert.deepEqual(pick({ place: '/etc/passwd.old', memo: '経理の共有' }), ['/etc/passwd.old', '経理の共有']);
+  assert.deepEqual(pick({ place: 'x'.repeat(C.MAX_PLACE + 1), memo: 'm'.repeat(C.MAX_MEMO + 1) }), ['', '']);
+  assert.deepEqual(pick({ place: `a${String.fromCharCode(10)}b`, memo: 3 }), ['', '']);
 });
 
 test('記録は上限（200件）を超えたら古いものから捨てる', () => {

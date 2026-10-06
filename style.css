@@ -503,6 +503,126 @@ h1 {
 .record.pri-muted { border-left-color: var(--pri-muted); }
 .record.pri-muted .record-title { color: var(--muted); }
 
+.record-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.record .code {
+  font-size: 13px;
+  margin: 6px 0 0;
+}
+
+/* 特定の結果。台帳に結びつくものは緑、候補は橙、形が崩れているものは赤の線（区分は文字でも出す） */
+.record.kind-exact,
+.record.kind-variant,
+.record.kind-place { border-left-color: var(--ok-text); }
+.record.kind-near { border-left-color: var(--warn-text); }
+.record.kind-unknown { border-left-color: var(--pri-muted); }
+.record.kind-malformed { border-left-color: var(--danger-text); }
+
+.snippet {
+  margin: 6px 0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--card);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+mark {
+  background: var(--accent-weak);
+  color: var(--text);
+  outline: 1px solid var(--accent-text);
+  border-radius: 3px;
+}
+
+/* ========== Monitor・Find ========== */
+.spaced { margin-top: 14px; }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.file-input { display: none; }
+
+.os-choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 0;
+  border: none;
+}
+
+.os-choice legend {
+  margin-bottom: 6px;
+  font-weight: 700;
+}
+
+.os-choice input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.os-choice label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 6px 14px;
+  border: 1px solid var(--field-border);
+  border-radius: 999px;
+  background: var(--card);
+  cursor: pointer;
+}
+
+.os-choice input:checked + label {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+}
+
+.os-choice input:focus-visible + label {
+  outline: 3px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+.steps { padding-left: 1.4em; }
+.steps li { margin: 12px 0; }
+.step-title { margin: 0; }
+
+.format-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 8px 0;
+}
+
+.format-row .field-label { margin: 0; }
+
+.select {
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 1px solid var(--field-border);
+  border-radius: 10px;
+  background: var(--field-bg);
+  color: var(--text);
+  font-size: 16px;
+}
+
+#monitor-title:focus { outline: none; }
+#monitor-title:focus-visible { outline: 3px solid var(--accent-text); }
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
@@ -558,7 +678,8 @@ h1 {
     grid-template-columns: 1fr 1fr;
   }
   .actions .btn { width: 100%; }
-  .record { grid-template-columns: 1fr; }
+  .record { grid-template-columns: minmax(0, 1fr); }
+  .record-actions { flex-direction: row; flex-wrap: wrap; }
 }
 
 /* 動きを減らす設定では、点滅と切り替えのアニメーションを止める */

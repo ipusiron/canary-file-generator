@@ -34,7 +34,8 @@ const TEXT = [
 const GRAPHICS = [
   ['field-border', 'card'], ['field-border', 'bg'], ['field-border', 'field-bg'], ['accent', 'card'], ['danger-text', 'danger-bg'],
   ['pri-critical', 'surface'], ['pri-warning', 'surface'], ['pri-info', 'surface'], ['pri-muted', 'surface'],
-  ['pri-critical', 'card'], ['pri-warning', 'card'], ['pri-info', 'card'], ['pri-muted', 'card']
+  ['pri-critical', 'card'], ['pri-warning', 'card'], ['pri-info', 'card'], ['pri-muted', 'card'],
+  ['ok-text', 'surface'], ['warn-text', 'surface'], ['danger-text', 'surface'], ['accent-text', 'accent-weak']
 ];
 
 test('ライトとダークの配色は、文字と背景が4.5:1以上、入力欄の枠と経過時間の色が3:1以上', () => {
@@ -53,7 +54,8 @@ test('OS の設定によるダークと、手動のダークは同じ値', () =>
 });
 
 test('操作するボタン・タブ・入力欄は高さ44px以上、入力欄の文字は16px', () => {
-  for (const sel of ['.icon-btn', '.tab-btn', '.btn', '.site-footer a']) assert.match(block(sel), /min-height: 44px/, sel);
+  for (const sel of ['.icon-btn', '.tab-btn', '.btn', '.site-footer a', '.select', '.os-choice label']) assert.match(block(sel), /min-height: 44px/, sel);
+  assert.match(block('.select'), /font-size: 16px/);
   const field = block('.text-input,\n.text-area');
   assert.match(field, /min-height: 44px/);
   assert.match(field, /font-size: 16px/);

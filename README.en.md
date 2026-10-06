@@ -10,7 +10,7 @@ English · [日本語](README.md)
 
 **Day054 - 100 Security Tools with Generative AI**
 
-Canary File Generator creates "important-looking files" that catch an attacker's eye (canary files and honey files) for education. It writes a unique token (a honeytoken) into each file and records every generated file in a ledger. Simulating an "opened" alert walks you through how a token tells you which file was opened. Nothing is sent over the network.
+Canary File Generator creates "important-looking files" that catch an attacker's eye (canary files and honey files) for education. It writes a unique token (a honeytoken) into each file and records every generated file in a ledger. Simulating an "opened" alert walks you through how a token tells you which file was opened. It gives monitoring setup examples that match where the file is placed (Linux auditd, Windows and macOS), and when you paste a log or leaked text, it identifies the file in the ledger from tokens and locations. Nothing is sent over the network.
 
 ---
 
@@ -26,7 +26,7 @@ You can try it directly in your browser.
 
 >![The passwd preset after generating a file](assets/en/screenshot.png)
 >
->*After generating passwd, the page shows where the token was written (the header and the comment field of the last line)*
+>*After generating passwd with a location and a memo, the page shows where the token was written (the header and the comment field of the last line)*
 
 >![A file name that starts with a dot](assets/en/screenshot2.png)
 >
@@ -36,9 +36,17 @@ You can try it directly in your browser.
 >
 >*The ledger of generated files, and the detection log colored by elapsed time*
 
->![Monitoring examples on the Learn tab](assets/en/screenshot4.png)
+>![Monitoring setup (Windows)](assets/en/screenshot4.png)
 >
->*The Learn tab shows the audit settings that detection needs (auditd, and SACLs with event 4663 on Windows)*
+>*"Monitoring setup" in the ledger gives steps that match the location (on Windows, the audit policy and a SACL, checked with event 4663)*
+
+>![Results on the Find tab (dark mode)](assets/en/screenshot5.png)
+>
+>*Paste a log or leaked text, and the page finds the file in the ledger from tokens and locations*
+
+>![Monitoring examples on the Learn tab](assets/en/screenshot6.png)
+>
+>*The Learn tab summarizes the audit settings that detection needs*
 
 ---
 
@@ -66,13 +74,23 @@ Where the lines fall depends on the source. Yuill et al. (2004) define a honeyfi
 - Choose whether to put an educational header and message at the top of the file
 - Downloading writes a unique token into each file. The token is always written, even without the educational header
 - If the file name has something the browser changes when saving (a leading dot, a separator, a reserved name and so on), the page explains why and shows the likely saved name
+- The path where the file will be placed and a memo (both optional) are recorded in the ledger together with the token
 
 ### Alerts (ledger and detection log)
 
-- Each generated file is recorded in the ledger with its name, token and time of generation
+- Each generated file is recorded in the ledger with its name, token, location, memo and time of generation
+- "Monitoring setup" on a ledger entry gives Linux (auditd), Windows and macOS steps that match the location. Commands can be copied with a button
 - "Simulate opening" on a ledger entry adds one entry to the detection log. The button on the Generate tab works on the last generated file
-- The detection log is colored by the time since each alert, and the category is also shown in words (updated every minute)
+- The detection log is colored by the time since each alert, and the category is also shown in words (updated every minute). Pseudo logs (an auditd record or event 4663 XML) can also be shown
+- The pseudo logs can be sent to the Find tab in one go and examined there
+- Export the ledger as JSON or CSV, and import JSON (to move it to another browser or device)
 - Remove entries or clear everything. In a browser that cannot save data, it still works while the page is open
+
+### Find
+
+- Paste a log or leaked text, or load a text file, and the page looks for tokens and location paths and shows which file in the ledger they belong to
+- Results fall into six categories, with line numbers and the surrounding text (see "Result categories of Find" below)
+- "Insert an example" builds an example from the last file in the ledger: a rewritten token, an auditd pseudo log, a token not in the ledger and a token cut off partway
 
 ### Learn
 
@@ -92,7 +110,9 @@ Where the lines fall depends on the source. Yuill et al. (2004) define a honeyfi
 2. Write `{{TOKEN}}` where you want the token in the bait text (each preset has one)
 3. Press "Download". The token and where it was written appear below
 4. Press "(Educational) Simulate opening this file". The page moves to the Alerts tab and adds one entry to the detection log
-5. Check in the ledger on the Alerts tab which token belongs to which file
+5. Press "Monitoring setup" in the ledger on the Alerts tab and see the steps that match the location
+6. Choose a "Pseudo log format" in the detection log and press "Examine the pseudo logs on the Find tab". On the Find tab, check which line of the log points to which file
+7. You can also paste real logs or text found somewhere on the Find tab (nothing leaves this page)
 
 ---
 
@@ -150,14 +170,45 @@ A leading dot and folder separators cannot survive a browser download. Rename th
 | Under 60 min | Yellow |
 | 60 min or more | Gray |
 
+### Result categories of Find
+
+Examples when the ledger has `EDU_VTPVXVR14D2PF2DB_FAKE` (located at `/srv/share/passwords.txt`).
+
+| Category | Condition | Example |
+|---|---|---|
+| Exact | Same as a token in the ledger | `EDU_VTPVXVR14D2PF2DB_FAKE` |
+| Variant spelling | Differs only in letter case, "-" as a separator, or I, L and O in place of 1 and 0 | `edu-vtpvxvrl4d2pf2db-fake` |
+| Location | A location path from the ledger appears (Windows paths ignore letter case) | `/srv/share/passwords.txt` |
+| One character off | Differs from a token in the ledger by exactly one character | `EDU_VTPVXVR14D2PF2DC_FAKE` |
+| Not in the ledger | The format is valid, but it is not in this ledger | `EDU_ZZZZZZZZZZZZZZZZ_FAKE` |
+| Broken | The middle part is not 16 characters, or contains characters that are not used | `EDU_VTPVXVR14D_FAKE` |
+
+Doubled backslashes, as in Windows paths inside JSON, are also found as locations. The text to examine can be up to 2,000,000 characters, and the search stops after 500 matches.
+
+### Monitoring setup examples
+
+| OS | What records access | Steps the tool gives |
+|---|---|---|
+| Linux | auditd (syscall rules, when opened for reading) | Add rules with `auditctl`, keep them in /etc/audit/rules.d/ and load with `augenrules --load`, check with `ausearch -k` |
+| Windows | Auditing of "File System" and the file's SACL | Enable auditing with `auditpol`, add `ReadData` to the SACL in PowerShell, check events with `Id = 4663` |
+| macOS | eslogger (Endpoint Security) | Check event names with `eslogger --list-events`, filter the output of `eslogger open` by the location path |
+
+The token itself (25 characters; auditctl keys can be up to 31 bytes) is used as the auditd key. The token stays in the records, so pasting the log on the Find tab leads you to the file in the ledger. The Windows subcategory is given by GUID ({0CCE921D-69AE-11D9-BED3-505054503030}) rather than by name, so the same command works on any language version of Windows. When the location is not a path for that OS, an example path (/srv/share/..., C:\Share\..., /Users/Shared/...) is used.
+
+### Pseudo logs
+
+The pseudo logs in the detection log are built in the form of an auditd record (three lines, SYSCALL, CWD and PATH, for openat on x86_64) and event 4663 XML (AccessList %%4416 = ReadData, AccessMask 0x1). Values other than the time and the file path (process IDs, user names and so on) are made up for learning.
+
 ---
 
 ## 🎯 Use cases
 
-- Security training: let learners go through generation, a simulated alert and the ledger, and see the difference between bait and detection and how a honeytoken traces the source
-- IT department preparation: before trying file server auditing (SACLs with event 4663 on Windows, auditd on Linux), prepare the files and tokens to place and check on the Learn tab which settings are needed
+- Security training: let learners go through generation, a simulated alert, the ledger and Find, and see the difference between bait and detection and how a honeytoken traces the source
+- IT department preparation: before trying file server auditing (SACLs with event 4663 on Windows, auditd on Linux), prepare the files and tokens to place and check the steps that match each location with "Monitoring setup" in the ledger
+- Practice reading audit logs: look at the pseudo logs (an auditd record and event 4663 XML) to see which fields carry the path and the key, and connect them to the ledger on the Find tab
 - Ransomware workshops: list candidate locations and names for canary files, starting from the presets and [docs/en/SCENARIOS.md](docs/en/SCENARIOS.md) (detection itself needs EDR or audit settings)
-- Leak investigation drills: create several documents with tokens, keep them in the ledger, and practice identifying which document leaked, assuming a token turned up in leaked text
+- Leak investigation drills: create several documents with tokens, keep them in the ledger, paste leaked text on the Find tab and work out which document it came from. Tokens with altered case or separators, and tokens one character off, are told apart as well
+- Handing over the ledger: export the ledger as JSON and import it in the browser of the person who monitors (hand out the CSV as a list)
 - CTF and puzzle design: create fake flags or files that send players the long way round (a fake passwd or id_rsa) with tokens, and tell which file was used
 - Props for escape rooms, tabletop RPGs and video: create documents that look like "confidential files" while keeping the fake markers
 - Classes (computing and information security): check the format of `/etc/passwd`, how file names, extensions and MIME types relate, and why browsers rename files when saving, by actually saving files
@@ -189,6 +240,8 @@ A key in a real format (AWS, GitHub, Stripe and so on) placed somewhere public m
 - Files are built in the browser and downloaded through a Blob URL. What you enter is never sent anywhere
 - Tokens come from `crypto.getRandomValues` (not `Math.random`)
 - The ledger and the detection log are saved in localStorage (`cfg_canaries` and `cfg_alerts`). When loading, the types are checked, and records of the wrong shape are dropped and counted on the page
+- Text on the Find tab and files loaded there are read only inside the browser (`connect-src 'none'`)
+- Importing a ledger JSON goes through the same type checks. When exporting CSV, values starting with `=`, `+`, `-`, `@` and so on get a leading `'` so that spreadsheets do not treat them as formulas (a defense against CSV injection)
 - The page is built with the DOM (`textContent`) and never uses `innerHTML`. Even if the saved records are tampered with, they do not run as scripts
 - Spell checking is turned off in the input fields
 - `<meta name="referrer" content="no-referrer">`, and external links use `rel="noopener noreferrer"`
@@ -198,6 +251,10 @@ A key in a real format (AWS, GitHub, Stripe and so on) placed somewhere public m
 ## ⚠️ Notes and limitations
 
 - This tool does not detect anything. The "opened" alert is only a simulation on the page. Real detection needs an audit log, EDR or a similar mechanism
+- The commands in the monitoring setup were checked against primary sources (man pages, Microsoft Learn, MS-GPAC and so on), but not on real systems up to the point where audit records appear. Set them up with administrator rights and follow your organization's procedures
+- The values in the pseudo logs are made up. Fields in real records may differ by kernel, auditd and Windows version
+- Find only searches for strings in text. For compressed files such as .docx, .xlsx and .pdf, extract the text first and paste it
+- The copy buttons fail if the browser does not allow writing to the clipboard (in that case, select the commands and copy them)
 - The file content is plain text. Apps that open .pdf, .docx or .xlsx files will treat it as a broken file
 - Browsers change a leading dot, separators, names reserved by Windows and shortcut extensions when saving
 - The ledger and the detection log are saved only in this browser (up to 200 entries each; the oldest are dropped beyond that). They are not shared with other browsers or devices
@@ -229,8 +286,10 @@ npm test
 - GitHub Actions runs it on every push and pull request
 - `test/core.test.js`: known answers and uniqueness of tokens, building the content (where the token goes), line breaks in dummy text, file name checks and saved names, color thresholds, validation of saved records
 - `test/presets.test.js`: control characters, backslashes, token positions, the number of fields in passwd, and no keys in real formats
+- `test/find.test.js`: the six categories of Find, line numbers and surrounding text, letter case and doubled backslashes in Windows paths, limits and speed on 2,000,000 characters, ledger JSON round trips and import checks, CSV quoting and the CSV injection defense
+- `test/monitor.test.js`: telling path styles apart, example paths, auditd, Windows and macOS steps, shell and PowerShell quoting, the form of the pseudo logs, and that passing a pseudo log through Find leads back to the file in the ledger
 - `test/html.test.js`, `test/contrast.test.js`, `test/messages.test.js`, `test/i18n.test.js`, `test/format.test.js`: CSP, tab ARIA, dictionary and page text, color contrast (4.5:1 and 3:1), formatting
-- `test/readme.test.js`: checks the README tables (where the token goes, presets, saved names, colors) against the logic, and the headings, images and directory structure of the Japanese and English READMEs
+- `test/readme.test.js`: checks the README tables (where the token goes, presets, saved names, colors, result categories of Find, monitoring setup examples) against the logic, and the headings, images and directory structure of the Japanese and English READMEs
 
 ---
 
@@ -244,6 +303,10 @@ npm test
 - [MITRE Engage Lures](https://engage.mitre.org/matrix/?activity=lures)
 - [Microsoft Learn "4663(S): An attempt was made to access an object"](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4663)
 - [auditctl(8)](https://man7.org/linux/man-pages/man8/auditctl.8.html)
+- [augenrules(8)](https://man7.org/linux/man-pages/man8/augenrules.8.html)
+- [MS-GPAC "Subcategory and SubcategoryGUID"](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-gpac/77878370-0712-47cd-997d-b07053429f6d)
+- [SUSE "Understanding the audit logs"](https://documentation.suse.com/sles/15-SP6/html/SLES-all/cha-audit-comp.html)
+- [OWASP "CSV Injection"](https://owasp.org/www-community/attacks/CSV_Injection)
 
 ---
 
@@ -260,11 +323,15 @@ canary-file-generator/
 │   │   ├── screenshot.png         # Generate tab (English)
 │   │   ├── screenshot2.png        # File name notes (English)
 │   │   ├── screenshot3.png        # Alerts tab (English, dark)
-│   │   └── screenshot4.png        # Learn tab (English)
+│   │   ├── screenshot4.png        # Monitoring setup (English)
+│   │   ├── screenshot5.png        # Find tab (English, dark)
+│   │   └── screenshot6.png        # Learn tab (English)
 │   ├── screenshot.png             # Generate tab
 │   ├── screenshot2.png            # File name notes
 │   ├── screenshot3.png            # Alerts tab (dark)
-│   └── screenshot4.png            # Learn tab
+│   ├── screenshot4.png            # Monitoring setup
+│   ├── screenshot5.png            # Find tab (dark)
+│   └── screenshot6.png            # Learn tab
 ├── docs/                          # Detailed documents
 │   ├── en/                        # English documents
 │   │   ├── ADVANCED_CASE_STUDIES.md # Case study on buying time (English)
@@ -281,17 +348,20 @@ canary-file-generator/
 │   ├── canary-core.js             # Logic (tokens, content, file name checks, record validation)
 │   ├── i18n.js                    # Language selection and replacing the HTML text
 │   ├── messages.js                # Japanese and English text
+│   ├── monitor.js                 # Monitoring setup (auditd, Windows, macOS) and pseudo logs
 │   ├── presets.js                 # Presets (file names and fake data)
 │   ├── theme-init.js              # Applies the saved theme before rendering
 │   └── theme.js                   # Switches between light and dark
 ├── test/                          # Automated tests (node --test)
 │   ├── contrast.test.js           # Color contrast and control sizes
 │   ├── core.test.js               # Logic
+│   ├── find.test.js               # Finding tokens and locations, ledger export and import
 │   ├── format.test.js             # Line length, line endings and control characters
 │   ├── html.test.js               # CSP, tab ARIA, text matching between HTML and dictionary
 │   ├── i18n.test.js               # How the language is chosen
 │   ├── load.js                    # Loads the page scripts into the tests
 │   ├── messages.test.js           # Japanese and English dictionaries
+│   ├── monitor.test.js            # Monitoring setup and pseudo logs
 │   ├── presets.test.js            # Presets
 │   └── readme.test.js             # README tables, headings, images and directory structure
 ├── .gitignore                     # Files excluded from Git
