@@ -101,12 +101,44 @@ Access code: {{TOKEN}}</textarea>
         <p class="help" data-i18n="gen.placeHelp">置き場所とメモは台帳に記録し、監視の設定例と特定に使います。置き場所は「/」で始まるパスか、「C:\」やネットワークの共有（\\server\…）で始まるパスで書きます。</p>
       </div>
 
+      <div class="card">
+        <h3 data-i18n="out.title">中身の形式と保存のしかた</h3>
+        <div class="format-row">
+          <label class="field-label" for="out-format" data-i18n="out.formatLabel">中身の形式</label>
+          <select id="out-format" class="select">
+            <option value="auto" data-i18n="out.auto">自動（拡張子に合わせる）</option>
+            <option value="text" data-i18n="out.text">テキスト</option>
+            <option value="docx" data-i18n="out.docx">Word（.docx）</option>
+            <option value="xlsx" data-i18n="out.xlsx">Excel（.xlsx）</option>
+            <option value="pdf" data-i18n="out.pdf">PDF（英数字だけ）</option>
+          </select>
+        </div>
+        <label class="field-label spaced" for="meta-author" data-i18n="out.authorLabel">作成者（Word・Excel・PDFのプロパティ）</label>
+        <input type="text" id="meta-author" class="text-input" maxlength="100" placeholder="EXAMPLE User" spellcheck="false" autocomplete="off">
+        <label class="field-label spaced" for="meta-days" data-i18n="out.daysLabel">日付を何日前にするか（0〜30）</label>
+        <input type="number" id="meta-days" class="text-input num" min="0" max="30" step="1" value="0">
+        <div class="check-row spaced">
+          <input type="checkbox" id="out-zip">
+          <label for="out-zip" data-i18n="out.zip">置き場所のフォルダー構造ごとZIPにまとめる</label>
+        </div>
+        <p class="help" data-i18n="out.help">「自動」では、.docx・.xlsx・.pdfの名前なら本当に開けるファイルを作ります。日付は、文書のプロパティ・本文の日付・ZIPの中のファイルの日時に入ります。ZIPにまとめると、先頭のドットとフォルダーを保ったまま渡せます。監視の手順をまとめたCANARY-SETUP.txtも入ります。</p>
+      </div>
+
       <div class="actions">
         <button type="button" id="btn-generate" class="btn primary" data-i18n="gen.generate">ダウンロード生成</button>
         <button type="button" id="btn-simulate" class="btn" data-i18n="gen.simulate" disabled>（教育用）このファイルの開封を擬似通知</button>
       </div>
       <p id="simulate-target" class="small muted" data-i18n="gen.simulateNone">ファイルを生成すると、そのファイルの開封を擬似通知できます。</p>
       <div id="gen-status" class="status" aria-live="polite"></div>
+
+      <div class="card">
+        <h3 data-i18n="kit.title">一式をまとめて作る（ZIP）</h3>
+        <p class="small" data-i18n="kit.lead">よく狙われるファイルを、置き場所のフォルダー構造ごと1つのZIPにまとめます。ファイルごとに別のトークンを書き込み、すべて台帳に記録します。冒頭の教育用の見出し・作成者・日付は、上の設定を使います。</p>
+        <div class="actions">
+          <button type="button" class="btn" data-kit="linuxHome" data-i18n="kit.linuxHome">Linuxのホーム（.ssh/id_rsa・.aws/credentials・.env）</button>
+          <button type="button" class="btn" data-kit="winShare" data-i18n="kit.winShare">Windowsの共有フォルダー（budget.xlsx・secrets.docx・passwords.txt）</button>
+        </div>
+      </div>
       <p class="small muted" data-i18n="gen.note">※ 実際のネットワーク送信は行いません。画面の上で「検知」を擬似的に表示します。</p>
     </section>
 
@@ -282,6 +314,7 @@ ausearch -k canary -i</pre>
   <script src="js/canary-core.js"></script>
   <script src="js/presets.js"></script>
   <script src="js/monitor.js"></script>
+  <script src="js/formats.js"></script>
   <script src="js/messages.js"></script>
   <script src="js/i18n.js"></script>
   <script src="js/theme.js"></script>

@@ -13,6 +13,7 @@
   const C = globalThis.CanaryCore;
   const P = globalThis.CanaryPresets;
   const MON = globalThis.CanaryMonitor;
+  const F = globalThis.CanaryFormats;
   const I18N = globalThis.CanaryI18n;
   const THEME = globalThis.CanaryTheme;
   const t = (key, vars) => globalThis.CanaryMessages.t(key, vars, I18N.lang);
@@ -118,10 +119,16 @@
   }
 
   // ===== 生成タブ =====
+  // 選んだ「中身の形式」を、名前の拡張子に照らして決める（自動なら .docx・.xlsx・.pdf だけ本当の形式）
+  function chosenFormat(name) {
+    return F.formatFor($('out-format').value, C.extOf(String(name || '').trim() || C.DEFAULT_NAME));
+  }
+
   function renderName() {
-    const r = C.checkFileName($('file-name').value);
-    $('name-issues').replaceChildren(...r.issues.map((x) => el('li', x.level,
-      t(`issue.${x.code}`, { saveAs: r.saveAs, name: r.name, ext: r.ext, max: C.MAX_NAME }))));
+    const fmt = chosenFormat($('file-name').value);
+    const r = C.checkFileName($('file-name').value, fmt);
+    const vars = { saveAs: r.saveAs, name: r.name, ext: r.ext, max: C.MAX_NAME, format: t(`fmt.${fmt}`), want: fmt };
+    $('name-issues').replaceChildren(...r.issues.map((x) => el('li', x.level, t(`issue.${x.code}`, vars))));
     const saveAs = $('save-as');
     saveAs.hidden = r.saveAs === r.name;
     saveAs.textContent = saveAs.hidden ? '' : t('gen.saveAs', { name: r.saveAs });
@@ -167,30 +174,121 @@
     }, 0);
   }
 
-  function generate() {
-    const name = renderName().name;
+  // 日付を何日前にするか（0〜30。数でなければ0）
+  function backdays() {
+    const n = Math.floor(Number($('meta-days').value));
+    return Number.isFinite(n) ? Math.min(Math.max(n, 0), 30) : 0;
+  }
+
+  // 1つのファイルの中身を作る。戻り値: { ok, bytes, token, places, format } か { ok: false, status }
+  function makeFile(name, body, format, created) {
     const token = C.makeToken();
-    const now = new Date();
-    const includeNotice = $('include-notice').checked;
     const { content, places } = C.buildContent({
       token,
-      body: $('body-text').value,
-      includeNotice,
+      body,
+      includeNotice: $('include-notice').checked,
       notice: $('notice-text').value,
-      generatedAt: C.formatLocal(now),
-      date: C.formatDate(now)
+      generatedAt: C.formatLocal(created),
+      date: C.formatDate(created)
     });
-    download(new Blob([content], { type: C.MIME }), name);
-    const entry = C.normalizeCanary({
-      token, fileName: name, at: now.getTime(), notice: includeNotice, place: $('place-path').value.trim(), memo: $('memo-text').value.trim()
-    });
-    state.canaries = C.append(state.canaries, entry);
+    const title = name.split(/[/\\]/).pop().replace(/\.[^.]*$/, '') || name;
+    const creator = $('meta-author').value.trim() || 'EXAMPLE User';
+    const r = F.build(format, content, { title, creator, token, created, sheet: title });
+    if (!r.ok) return { ok: false, status: r.line ? { key: 'gen.pdfNonAscii', vars: { line: r.line } } : { key: 'gen.pdfMeta', vars: {} } };
+    return { ok: true, bytes: r.bytes, token, places, format };
+  }
+
+  // ZIP に入れる CANARY-SETUP.txt。ファイルごとに、置き場所の形に合う OS の監視の手順を並べる（その時点の言語で書く）
+  function setupText(items) {
+    const lines = [t('setup.title'), t('setup.note'), ''];
+    for (const { path, canary } of items) {
+      lines.push(`## ${t('setup.file', { path, place: canary.place || '-', token: canary.token })}`);
+      const os = MON.pathStyle(canary.place) === 'windows' ? 'windows' : 'linux';
+      const s = MON.setup(os, canary);
+      s.steps.forEach((step, i) => lines.push(`${i + 1}. ${t(step.key)}`, step.code, ''));
+    }
+    return `${lines.join('\n')}\n`;
+  }
+
+  // 台帳に記録する
+  function record(entries) {
+    for (const e of entries) state.canaries = C.append(state.canaries, C.normalizeCanary(e));
     writeKey(KEY_CANARIES, state.canaries);
-    state.lastToken = token;
-    state.genStatus = [{ key: 'gen.done', vars: { name, token } }, { key: 'gen.places', vars: () => ({ list: placesText(places) }) }];
+    state.lastToken = entries[entries.length - 1].token;
     renderGen();
     renderLedger();
     renderStorage();
+  }
+
+  const zipName = (name) => `${name.split(/[/\\]/).pop().replace(/\.[^.]*$/, '').replace(/^\.+/, '') || 'canary'}.zip`;
+
+  function generate() {
+    const name = renderName().name;
+    const now = new Date();
+    const days = backdays();
+    const created = new Date(now.getTime() - days * 86400000);
+    const format = chosenFormat(name);
+    const made = makeFile(name, $('body-text').value, format, created);
+    if (!made.ok) {
+      state.genStatus = [made.status];
+      renderGen();
+      return;
+    }
+    const place = $('place-path').value.trim();
+    const entry = { token: made.token, fileName: name, at: now.getTime(), notice: $('include-notice').checked, place, memo: $('memo-text').value.trim() };
+    const status = [{ key: 'gen.done', vars: { name, token: made.token } }, { key: 'gen.places', vars: () => ({ list: placesText(made.places) }) },
+      { key: 'gen.format', vars: () => ({ format: t(`fmt.${format}`) }) }];
+    if (days) status.push({ key: 'gen.dated', vars: { date: C.formatDate(created), days } });
+    if ($('out-zip').checked) {
+      const path = F.zipPathFromPlace(place, name);
+      if (!path) {
+        state.genStatus = [{ key: 'gen.zipBadPath', vars: {} }];
+        renderGen();
+        return;
+      }
+      const zipFile = zipName(name);
+      const setup = setupText([{ path, canary: C.normalizeCanary(entry) }]);
+      download(new Blob([F.zip([{ path, data: made.bytes }, { path: 'CANARY-SETUP.txt', data: setup }], created)], { type: C.MIME }), zipFile);
+      status.push({ key: 'gen.zipped', vars: { zip: zipFile, path } });
+      if (!place) status.push({ key: 'gen.zipNoPlace', vars: {} });
+    } else {
+      download(new Blob([made.bytes], { type: C.MIME }), name);
+    }
+    state.genStatus = status;
+    record([entry]);
+  }
+
+  // 一式: プリセットごとに別のトークンでファイルを作り、置き場所のフォルダー構造ごと1つの ZIP にまとめる
+  function generateKit(kitId) {
+    const kit = P.KITS.find((k) => k.id === kitId);
+    if (!kit) return;
+    const now = new Date();
+    const days = backdays();
+    const created = new Date(now.getTime() - days * 86400000);
+    const files = [];
+    const entries = [];
+    for (const f of kit.files) {
+      const preset = P.byId(f.preset);
+      const path = F.zipPathFromPlace(f.place, preset.name);
+      const fileName = path.split('/').pop();
+      const made = makeFile(fileName, preset.body, f.format, created);
+      if (!made.ok) {
+        state.genStatus = [made.status];
+        renderGen();
+        return;
+      }
+      const entry = { token: made.token, fileName, at: now.getTime(), notice: $('include-notice').checked, place: f.place,
+        memo: t('kit.memo', { kit: t(`kit.name.${kitId}`) }) };
+      files.push({ path, data: made.bytes, canary: C.normalizeCanary(entry) });
+      entries.push(entry);
+    }
+    const zipFile = `canary-kit-${kitId === 'linuxHome' ? 'linux-home' : 'windows-share'}.zip`;
+    const setup = setupText(files.map(({ path, canary }) => ({ path, canary })));
+    download(new Blob([F.zip([...files.map(({ path, data }) => ({ path, data })), { path: 'CANARY-SETUP.txt', data: setup }], created)],
+      { type: C.MIME }), zipFile);
+    state.genStatus = [{ key: 'kit.done', vars: { zip: zipFile, n: files.length } }];
+    if (days) state.genStatus.push({ key: 'gen.dated', vars: { date: C.formatDate(created), days } });
+    record(entries);
   }
 
   function setupGen() {
@@ -219,6 +317,8 @@
       renderGen();
     });
     $('btn-generate').addEventListener('click', generate);
+    $('out-format').addEventListener('change', renderName);
+    for (const b of document.querySelectorAll('[data-kit]')) b.addEventListener('click', () => generateKit(b.dataset.kit));
     $('btn-simulate').addEventListener('click', () => {
       const c = lastCanary();
       if (c) simulate(c.token, 'gen');

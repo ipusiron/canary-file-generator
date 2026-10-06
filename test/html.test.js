@@ -6,7 +6,8 @@ const html = read('index.html');
 const { PRESETS } = load('js/presets.js').CanaryPresets;
 const { MESSAGES, t } = load('js/messages.js').CanaryMessages;
 const { parseVars } = load('js/i18n.js').CanaryI18n;
-const SCRIPTS = ['script.js', 'js/canary-core.js', 'js/presets.js', 'js/monitor.js', 'js/messages.js', 'js/i18n.js', 'js/theme.js', 'js/theme-init.js'];
+const SCRIPTS = ['script.js', 'js/canary-core.js', 'js/presets.js', 'js/monitor.js', 'js/formats.js', 'js/messages.js', 'js/i18n.js', 'js/theme.js',
+  'js/theme-init.js'];
 const ids = new Set([...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]));
 const TABS = ['gen', 'alerts', 'find', 'study'];
 
@@ -24,8 +25,8 @@ test('HTML に style 属性・インラインのスクリプト・イベント�
   assert.doesNotMatch(html, /\sstyle=/);
   assert.doesNotMatch(html, /\son[a-z]+=/i);
   const scripts = [...html.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]);
-  assert.deepEqual(scripts, ['js/theme-init.js', 'js/canary-core.js', 'js/presets.js', 'js/monitor.js', 'js/messages.js', 'js/i18n.js', 'js/theme.js',
-    'script.js']);
+  assert.deepEqual(scripts, ['js/theme-init.js', 'js/canary-core.js', 'js/presets.js', 'js/monitor.js', 'js/formats.js', 'js/messages.js', 'js/i18n.js',
+    'js/theme.js', 'script.js']);
   assert.equal((html.match(/<script/g) || []).length, scripts.length);
   for (const a of html.match(/<a [^>]*>/g)) assert.match(a, /target="_blank" rel="noopener noreferrer"/, a);
 });
@@ -47,7 +48,7 @@ test('ボタンは type="button"。入力欄には label があり、ファイ�
   for (const m of html.matchAll(/<(textarea|select|input) [^>]*id="([^"]+)"/g)) {
     assert.match(html, new RegExp(`<label [^>]*for="${m[2]}"`), m[2]);
   }
-  for (const id of ['file-name', 'notice-text', 'body-text', 'place-path', 'memo-text', 'find-text']) {
+  for (const id of ['file-name', 'notice-text', 'body-text', 'place-path', 'memo-text', 'find-text', 'meta-author']) {
     assert.match(html, new RegExp(`id="${id}"[^>]*spellcheck="false"`), id);
   }
 });
@@ -113,10 +114,13 @@ test('localStorage は try で囲んで読み書きする（使えない環境�
   }
 });
 
-test('生成したファイルは計算部の MIME（application/octet-stream）、台帳の書き出しは JSON と CSV の MIME で Blob を作る', () => {
+test('生成したファイルと ZIP は計算部の MIME（application/octet-stream）、台帳の書き出しは JSON と CSV の MIME で Blob を作る', () => {
   const src = read('script.js');
-  assert.match(src, /new Blob\(\[content\], \{ type: C\.MIME \}\)/);
+  assert.match(src, /new Blob\(\[made\.bytes\], \{ type: C\.MIME \}\)/);
+  const blobs = [...src.matchAll(/new Blob\(([\s\S]*?)\{ type: ([^}]+) \}\)/g)].map((m) => m[2].trim());
+  assert.deepEqual(blobs.filter((x) => x !== 'C.MIME').sort(), ["'application/json'", "'text/csv;charset=utf-8'"]);
+  assert.equal(blobs.filter((x) => x === 'C.MIME').length, 3);
   assert.match(src, /new Blob\(\[C\.ledgerToJson\(state\.canaries\)\], \{ type: 'application\/json' \}\)/);
   assert.match(src, /new Blob\(\[C\.ledgerToCsv\(state\.canaries\)\], \{ type: 'text\/csv;charset=utf-8' \}\)/);
-  assert.equal((src.match(/new Blob\(/g) || []).length, 3);
+  assert.equal((src.match(/new Blob\(/g) || []).length, 5);
 });

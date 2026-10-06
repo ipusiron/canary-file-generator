@@ -5,9 +5,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { read, core, presets, load } from './load.js';
 
+
 const C = core();
 const { PRESETS } = presets();
 const M = load('js/monitor.js').CanaryMonitor;
+const F = load('js/formats.js').CanaryFormats;
 const { MESSAGES } = load('js/messages.js').CanaryMessages;
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const TOKEN = 'EDU_VTPVXVR14D2PF2DB_FAKE';
@@ -142,7 +144,8 @@ for (const [lang, d] of Object.entries(DOCS)) {
     const rows = table(section(d.text, d.sec.tech), d.head.name);
     assert.ok(rows.length >= 6, String(rows.length));
     for (const [input, saveAs, notes] of rows) {
-      const r = C.checkFileName(unquote(input));
+      // 画面の既定（中身の形式は「自動」）と同じ条件で検査する
+      const r = C.checkFileName(unquote(input), F.formatFor('auto', C.extOf(unquote(input))));
       assert.equal(r.saveAs, unquote(saveAs), input);
       const codes = notes === d.none ? [] : notes.split(d.sep).map((s) => d.labels[s.trim().toLowerCase()]);
       assert.ok(codes.every(Boolean), notes);

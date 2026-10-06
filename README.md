@@ -189,7 +189,7 @@ api_keys.txtは「Internal Service Token:」の次の行、passwdは最後の行
 
 ### ファイル名と保存される名前
 
-ダウンロードは、どの名前でも`application/octet-stream`で渡します。`text/plain`で渡すと、Chromium・Edgeは拡張子のない名前に`.txt`を足すためです（passwdがpasswd.txtになる）。次の表は、Chromium・Edge・Firefoxで保存して確かめた名前です。
+ダウンロードは、どの名前でも`application/octet-stream`で渡します。`text/plain`で渡すと、Chromium・Edgeは拡張子のない名前に`.txt`を足すためです（passwdがpasswd.txtになる）。次の表は、Chromium・Edge・Firefoxで保存して確かめた名前です。画面の指摘は、中身の形式が「自動」（既定）のときのものです。
 
 | 入力した名前 | 保存される名前の目安 | 画面の指摘 |
 |---|---|---|
@@ -197,7 +197,8 @@ api_keys.txtは「Internal Service Token:」の次の行、passwdは最後の行
 | `id_rsa` | `id_rsa` | 拡張子なし |
 | `.env` | `env` | 先頭のドット・拡張子なし |
 | `.aws/credentials` | `aws_credentials` | 区切り文字・先頭のドット・拡張子なし |
-| `budget.xlsx` | `budget.xlsx` | 中身はテキスト |
+| `budget.xlsx` | `budget.xlsx` | なし |
+| `old_report.doc` | `old_report.doc` | 中身はテキスト |
 | `notes.txt` | `notes.txt` | なし |
 
 先頭のドットと、フォルダーの区切りは、ブラウザーのダウンロードでは保てません。保存したあとに、名前を戻すかフォルダーへ移します。

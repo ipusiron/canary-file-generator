@@ -150,7 +150,7 @@ In api_keys.txt the token is on the line after "Internal Service Token:", and in
 
 ### File names and saved names
 
-Every download is handed over as `application/octet-stream`. With `text/plain`, Chromium and Edge add `.txt` to names without an extension (passwd becomes passwd.txt). The table shows names confirmed by saving in Chromium, Edge and Firefox.
+Every download is handed over as `application/octet-stream`. With `text/plain`, Chromium and Edge add `.txt` to names without an extension (passwd becomes passwd.txt). The table shows names confirmed by saving in Chromium, Edge and Firefox. The notes are those shown when the content format is "Auto" (the default).
 
 | Name entered | Likely saved name | Notes on the page |
 |---|---|---|
@@ -158,7 +158,8 @@ Every download is handed over as `application/octet-stream`. With `text/plain`, 
 | `id_rsa` | `id_rsa` | No extension |
 | `.env` | `env` | Leading dot, no extension |
 | `.aws/credentials` | `aws_credentials` | Separator, leading dot, no extension |
-| `budget.xlsx` | `budget.xlsx` | Content is text |
+| `budget.xlsx` | `budget.xlsx` | None |
+| `old_report.doc` | `old_report.doc` | Content is text |
 | `notes.txt` | `notes.txt` | None |
 
 A leading dot and folder separators cannot survive a browser download. Rename the file or move it into its folder after saving.

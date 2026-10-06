@@ -39,7 +39,7 @@ test('日本語の文言は、日本語と英数字のあいだに半角空白�
 test('計算部が返すファイル名の指摘と経過時間の区分は、すべて辞書にある', () => {
   const src = read('js/canary-core.js');
   const codes = [...src.matchAll(/'(name\.[a-zA-Z]+)': '(?:warn|info)'/g)].map((m) => m[1]);
-  assert.equal(codes.length, 9);
+  assert.equal(codes.length, 10);
   for (const code of codes) for (const lang of ['ja', 'en']) assert.ok(MESSAGES[lang][`issue.${code}`], `${lang} ${code}`);
   for (const [, p] of C.PRIORITY) assert.ok(MESSAGES.ja[`pri.${p}`] && MESSAGES.en[`pri.${p}`], p);
   assert.ok(MESSAGES.ja['pri.muted'] && MESSAGES.en['pri.muted']);
