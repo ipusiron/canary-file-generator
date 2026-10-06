@@ -7,7 +7,8 @@ import { read, core, presets, load } from './load.js';
 
 
 const C = core();
-const { PRESETS } = presets();
+const P = presets();
+const { PRESETS } = P;
 const M = load('js/monitor.js').CanaryMonitor;
 const F = load('js/formats.js').CanaryFormats;
 const { MESSAGES } = load('js/messages.js').CanaryMessages;
@@ -21,7 +22,9 @@ const DOCS = {
     sec: { tech: '🔬 技術的な説明', limits: '⚠️ 注意と限界', refs: '🔗 参考', tree: '📁 ディレクトリー構造', about: '🛠️ このツールについて',
       security: '🔒 セキュリティ', documents: '📚 ドキュメント' },
     head: { place: '| 条件 | トークンを書く場所 |', preset: '| ファイル名 | トークンを書く行 |', name: '| 入力した名前 | 保存される名前の目安 | 画面の指摘 |',
-      color: '| 通知からの経過時間 | 色 |', find: '| 区分 | 条件 | 例 |', monitor: '| OS | 記録する仕組み | 本ツールが出す手順 |' },
+      color: '| 通知からの経過時間 | 色 |', find: '| 区分 | 条件 | 例 |', monitor: '| OS | 記録する仕組み | 本ツールが出す手順 |',
+      formats: '| 中身の形式 | 組み立て方 | トークンを書く場所 |', kits: '| 一式 | ZIPの中のパス | 中身の形式 |' },
+    wrap: (n) => `${n}文字で折り返し`, pageLines: (n) => `${n}行ごと`,
     place: { withToken: 'がある', withoutToken: 'がない', notice: '教育用の見出し' },
     labels: { 拡張子なし: 'name.noExt', 先頭のドット: 'name.leadingDot', 区切り文字: 'name.separator', 中身はテキスト: 'name.textContent' },
     none: 'なし', sep: '・',
@@ -36,7 +39,9 @@ const DOCS = {
       about: '🛠️ About this tool', security: '🔒 Security', documents: '📚 Documents' },
     head: { place: '| Condition | Where the token is written |', preset: '| File name | Line that carries the token |',
       name: '| Name entered | Likely saved name | Notes on the page |', color: '| Time since the alert | Color |',
-      find: '| Category | Condition | Example |', monitor: '| OS | What records access | Steps the tool gives |' },
+      find: '| Category | Condition | Example |', monitor: '| OS | What records access | Steps the tool gives |',
+      formats: '| Content format | How it is built | Where the token is written |', kits: '| Set | Path inside the ZIP | Content format |' },
+    wrap: (n) => `wrapped at ${n} characters`, pageLines: (n) => `every ${n} lines`,
     place: { withToken: 'contains', withoutToken: 'has no', notice: 'educational header' },
     labels: { 'no extension': 'name.noExt', 'leading dot': 'name.leadingDot', separator: 'name.separator', 'content is text': 'name.textContent' },
     none: 'None', sep: ', ',
@@ -173,6 +178,21 @@ for (const [lang, d] of Object.entries(DOCS)) {
     assert.ok(section(d.text, d.sec.tech).includes(String(C.MAX_HITS)));
   });
 
+  test(`${d.file}: 本当に開けるファイルの表は、形式の名前と順が画面と同じで、PDF の折り返しとページの行数が計算部と同じ`, () => {
+    const tech = section(d.text, d.sec.tech);
+    const rows = table(tech, d.head.formats);
+    assert.deepEqual(rows.map((r) => r[0]), F.FORMATS.map((f) => MESSAGES[lang][`fmt.${f}`]));
+    assert.ok(rows[3][1].includes(d.wrap(F.PDF_WRAP)), rows[3][1]);
+    assert.ok(rows[3][1].includes(d.pageLines(F.PDF_PAGE_LINES)), rows[3][1]);
+  });
+
+  test(`${d.file}: 一式の表は、presets.js の一式と同じパス・同じ形式`, () => {
+    const rows = table(section(d.text, d.sec.tech), d.head.kits);
+    const want = P.KITS.flatMap((kit) => kit.files.map((f) => [MESSAGES[lang][`kit.name.${kit.id}`],
+      F.zipPathFromPlace(f.place, P.byId(f.preset).name), MESSAGES[lang][`fmt.${f.format}`]]));
+    assert.deepEqual(rows.map(([kit, path, fmt]) => [kit, unquote(path), fmt]), want);
+  });
+
   test(`${d.file}: 監視の設定例の表のコマンドは、計算部が出す手順に含まれる。GUID とキーの長さも同じ`, () => {
     const rows = table(section(d.text, d.sec.tech), d.head.monitor);
     assert.deepEqual(rows.map((r) => r[0]), ['Linux', 'Windows', 'macOS']);
@@ -221,7 +241,7 @@ for (const [lang, d] of Object.entries(DOCS)) {
 test('参考文献の URL は日英で同じ', () => {
   const urls = (d) => [...section(d.text, d.sec.refs).matchAll(/\]\((https:\/\/[^)\s]+)\)/g)].map((m) => m[1]);
   assert.deepEqual(urls(DOCS.en), urls(DOCS.ja));
-  assert.equal(urls(DOCS.ja).length, 12);
+  assert.equal(urls(DOCS.ja).length, 14);
 });
 
 test('docs と docs/en は同じファイルを持ち、見出しの数と参考文献の URL がそろう。互いに言語の切り替えのリンクがある', () => {
@@ -241,13 +261,13 @@ test('docs と docs/en は同じファイルを持ち、見出しの数と参考
   }
 });
 
-test('画像: 参照はすべて実在する。スクリーンショットは日本語版が assets/、英語版が assets/en/ の6枚。どこからも参照しない画像は置かない', () => {
+test('画像: 参照はすべて実在する。スクリーンショットは日本語版が assets/、英語版が assets/en/ の7枚。どこからも参照しない画像は置かない', () => {
   const refs = {};
   for (const [lang, d] of Object.entries(DOCS)) {
     refs[lang] = [...d.text.matchAll(/!\[[^\]]*\]\((assets\/[^)]+)\)/g)].map((m) => m[1]);
     for (const r of refs[lang]) assert.ok(fs.existsSync(path.join(ROOT, r)), r);
     const shots = refs[lang].filter((r) => /screenshot/.test(r));
-    assert.equal(shots.length, 6, lang);
+    assert.equal(shots.length, 7, lang);
     for (const r of shots) {
       assert.match(r, d.shots, r);
       assert.ok(fs.statSync(path.join(ROOT, r)).size <= 300 * 1024, r);

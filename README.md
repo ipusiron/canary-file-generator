@@ -49,7 +49,7 @@ hub: true
 
 **Day054 - 生成AIで作るセキュリティツール100**
 
-Canary File Generatorは、攻撃者の目を引く「重要そうなファイル」（カナリアファイル・ハニーファイル）を教育用に生成するツールです。ファイルごとに一意のトークン（ハニートークン）を書き込み、生成したファイルを台帳に記録します。開封の擬似通知を出すと、トークンからどのファイルが開かれたかを突き止める流れを、最初から最後までたどれます。置き場所に合わせた監視の設定例（Linuxのauditd・Windows・macOS）を出し、ログや流出したテキストを貼ればトークンと置き場所から台帳のファイルを特定します。ネットワークへは何も送りません。
+Canary File Generatorは、攻撃者の目を引く「重要そうなファイル」（カナリアファイル・ハニーファイル）を教育用に生成するツールです。ファイルごとに一意のトークン（ハニートークン）を書き込み、生成したファイルを台帳に記録します。開封の擬似通知を出すと、トークンからどのファイルが開かれたかを突き止める流れを、最初から最後までたどれます。置き場所に合わせた監視の設定例（Linuxのauditd・Windows・macOS）を出し、ログや流出したテキストを貼ればトークンと置き場所から台帳のファイルを特定します。名前に合わせて本当に開けるWord・Excel・PDFを作り、置き場所のフォルダー構造ごとZIPにまとめることもできます。ネットワークへは何も送りません。
 
 ---
 
@@ -87,6 +87,10 @@ Canary File Generatorは、攻撃者の目を引く「重要そうなファイ�
 >
 >*検知に必要な監査の設定を、座学タブでまとめて確かめる*
 
+>![中身の形式と一式のZIP](assets/screenshot7.png)
+>
+>*中身の形式（Word・Excel・PDF）・作成者・日付を選び、一式を置き場所のフォルダー構造ごとZIPにまとめる*
+
 ---
 
 ## 🐤 カナリアファイルとハニートークン
@@ -114,6 +118,10 @@ Canary File Generatorは、攻撃者の目を引く「重要そうなファイ�
 - ダウンロードすると、ファイルごとに一意のトークンを書き込む。教育用の見出しを外しても、トークンは必ず入る
 - ファイル名に、ブラウザーが保存のときに変える要素（先頭のドット・区切り文字・予約名など）があれば、理由と保存される名前の目安を示す
 - 置く場所のパスとメモ（任意）を、トークンと一緒に台帳に記録する
+- 中身の形式を選ぶ（自動・テキスト・Word・Excel・PDF）。.docx・.xlsx・.pdfの名前なら、本当に開けるファイルを作る
+- 作成者と日付（0〜30日前）を、文書のプロパティと本文の日付に入れる
+- 置き場所のフォルダー構造ごとZIPにまとめる（先頭のドットとフォルダーを保てる。監視の手順をまとめたCANARY-SETUP.txtを同梱）
+- 一式（Linuxのホーム・Windowsの共有フォルダー）を、ファイルごとに別のトークンで1つのZIPにまとめ、すべて台帳に記録する
 
 ### アラート（台帳と検知ログ）
 
@@ -212,6 +220,34 @@ api_keys.txtは「Internal Service Token:」の次の行、passwdは最後の行
 | 60分未満 | 黄 |
 | 60分以上 | 灰 |
 
+### 本当に開けるファイル
+
+中身の形式が「自動」（既定）なら、名前が.docx・.xlsx・.pdfのときに、それぞれのアプリで開けるファイルを作ります。ライブラリーは使わず、ブラウザーの中で組み立てます。
+
+| 中身の形式 | 組み立て方 | トークンを書く場所 |
+|---|---|---|
+| テキスト | 本文をそのままUTF-8で書く | 本文 |
+| Word | 1行を1段落にした、開くのに要る最小の部品（Office Open XML） | 本文と、文書のプロパティの識別子（dc:identifier） |
+| Excel | 1行を1行にし、「キー: 値」の行は2列に分ける。値はすべて文字列（数式は書かない） | セルと、文書のプロパティの識別子（dc:identifier） |
+| PDF | PDF 1.4。Courier 10ポイント、85文字で折り返し、60行ごとにページを分ける。英数字（ASCII）だけ | 本文と、文書の情報のSubject |
+
+作成者と「日付を何日前にするか」（0〜30日）は、Word・Excel・PDFのプロパティと本文の日付（{{DATE}}と冒頭の見出し）に入ります。Canarytokensも、Word文書の作成日時を1〜25日前にずらしています。
+
+### ZIPと一式
+
+「置き場所のフォルダー構造ごとZIPにまとめる」を選ぶと、置き場所のパスからドライブ文字と先頭の区切りを外した形でZIPに入れます（例：C:\Share\Finance\budget.xlsx → Share/Finance/budget.xlsx）。先頭のドットとフォルダーを保ったまま渡せ、展開すると、ZIPに書いた日付がファイルの更新日時になります（PowerShellのExpand-Archiveで確認）。ZIPには、監視の手順をまとめたCANARY-SETUP.txtも入ります。
+
+| 一式 | ZIPの中のパス | 中身の形式 |
+|---|---|---|
+| Linuxのホーム | `home/deploy/.ssh/id_rsa` | テキスト |
+| Linuxのホーム | `home/deploy/.aws/credentials` | テキスト |
+| Linuxのホーム | `home/deploy/app/.env` | テキスト |
+| Windowsの共有フォルダー | `Share/Finance/budget.xlsx` | Excel |
+| Windowsの共有フォルダー | `Share/HR/secrets.docx` | Word |
+| Windowsの共有フォルダー | `Share/IT/passwords.txt` | テキスト |
+
+ZIPは無圧縮で、ファイル名はUTF-8で書き（汎用フラグのビット11）、日時はこの端末の時刻です（MS-DOS形式なので2秒単位）。「..」を含むパスや、/で始まるパスはZIPに入れません。
+
 ### 特定の結果の区分
 
 台帳に`EDU_VTPVXVR14D2PF2DB_FAKE`（置き場所は`/srv/share/passwords.txt`）があるときの例です。
@@ -283,6 +319,8 @@ auditdのキーには、トークンそのもの（25文字。auditctlのキー�
 - トークンは`crypto.getRandomValues`で作る（`Math.random`を使わない）
 - 台帳と検知ログはlocalStorage（`cfg_canaries`・`cfg_alerts`）に保存する。読み込むときは型を確かめ、形の合わない記録は捨てて件数を知らせる
 - 特定タブのテキストや読み込むファイルは、ブラウザーの中だけで読む（`connect-src 'none'`）
+- Word・Excel・PDFには、外部の画像や文書への参照・マクロ・数式を入れない（開いても外へ通信しない）
+- ZIPには、「..」を含むパスや/で始まるパスを入れない（展開したときに置き場所の外へ書き出さないため）
 - 台帳のJSONの読み込みも、同じ型の検証を通す。CSVの書き出しでは、`=`・`+`・`-`・`@`などで始まる値の先頭に`'`を付け、表計算ソフトが式として解釈しないようにする（CSV Injectionの対策）
 - 画面の組み立てはDOM（`textContent`）で行い、`innerHTML`を使わない。保存した記録を書き換えられても、スクリプトとして動かない
 - 入力欄はスペルチェックを切っている
@@ -297,7 +335,10 @@ auditdのキーには、トークンそのもの（25文字。auditctlのキー�
 - 擬似ログの値は作りものである。実際の記録のフィールドは、カーネルやauditd、Windowsの版で違うことがある
 - 特定は、テキストの中の文字列を探すだけである。圧縮された.docx・.xlsx・.pdfのようなファイルの中身は、テキストに取り出してから貼る
 - コピーのボタンは、ブラウザーがクリップボードへの書き込みを許さないと失敗する（そのときはコマンドを選択してコピーする）
-- ファイルの中身はプレーンテキストである。.pdf・.docx・.xlsxとして開くアプリでは、壊れたファイルとして扱われる
+- 中身の形式を「テキスト」にしたとき、.pdf・.docx・.xlsxとして開くアプリでは壊れたファイルとして扱われる
+- WordとExcelのファイルは、開くのに要る最小の部品だけで作る（書式・スタイルはない）。PDFは英数字（ASCII）だけを書ける
+- 作ったWord・Excel・PDFは、python-docx・PyMuPDF・Office 2007（Word・Excel）で開けることを確かめた。新しい版のOffice・LibreOffice・Googleドキュメントでは確かめていない
+- ZIPの展開はPowerShellのExpand-Archiveで確かめた。ほかの展開ソフトでは、先頭のドットや日時の扱いが違うことがある
 - 先頭のドット・区切り文字・Windowsの予約名・ショートカットの拡張子は、ブラウザーが保存のときに変える
 - 台帳と検知ログは、このブラウザーにだけ保存する（それぞれ200件まで。超えたら古いものから消える）。ほかのブラウザーや端末とは共有されない
 - 経過時間の色分けは、この端末の時計で決まる
@@ -327,6 +368,7 @@ npm test
 - Node.js 22以上の`node --test`で動き、依存パッケージはない（`npm install`は不要）
 - GitHub Actionsで、pushとpull requestのたびに実行する
 - `test/core.test.js`：トークンの既知解答と重複のなさ、本文の組み立て（トークンを書く場所）、ダミーテキストの改行、ファイル名の検査と保存される名前、色分けのしきい値、保存した記録の検証
+- `test/formats.test.js`：ZIPを読み直してCRC・UTF-8の印・日時を確かめる、危ないパスを作らない、Word・Excelの部品とトークン、PDFのxrefの位置・ページ・ASCIIの制限、一式のパス
 - `test/presets.test.js`：プリセットの制御文字・バックスラッシュ・トークンの位置・passwdの欄の数・本物の形式の鍵がないこと
 - `test/find.test.js`：特定の6つの区分、行番号と前後の文、Windowsのパスの大文字小文字と二重のバックスラッシュ、上限と200万文字での速さ、台帳のJSONの往復と読み込みの検証、CSVの引用とCSV Injectionの対策
 - `test/monitor.test.js`：パスの形の見分け、例のパス、auditd・Windows・macOSの手順、シェルとPowerShellの引用、擬似ログの形、擬似ログを特定に通すと台帳のファイルに戻ること
@@ -349,6 +391,8 @@ npm test
 - [MS-GPAC「Subcategory and SubcategoryGUID」](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-gpac/77878370-0712-47cd-997d-b07053429f6d)
 - [SUSE「Understanding the audit logs」](https://documentation.suse.com/sles/15-SP6/html/SLES-all/cha-audit-comp.html)
 - [OWASP「CSV Injection」](https://owasp.org/www-community/attacks/CSV_Injection)
+- [PKWARE「APPNOTE.TXT - .ZIP File Format Specification」](https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT)
+- [Ecma International「ECMA-376 Office Open XML file formats」](https://ecma-international.org/publications-and-standards/standards/ecma-376/)
 
 ---
 
@@ -367,13 +411,15 @@ canary-file-generator/
 │   │   ├── screenshot3.png        # アラートタブ（英語・ダーク）
 │   │   ├── screenshot4.png        # 監視の設定（英語）
 │   │   ├── screenshot5.png        # 特定タブ（英語・ダーク）
-│   │   └── screenshot6.png        # 座学タブ（英語）
+│   │   ├── screenshot6.png        # 座学タブ（英語）
+│   │   └── screenshot7.png        # 中身の形式と一式（英語）
 │   ├── screenshot.png             # 生成タブ
 │   ├── screenshot2.png            # ファイル名の指摘
 │   ├── screenshot3.png            # アラートタブ（ダーク）
 │   ├── screenshot4.png            # 監視の設定
 │   ├── screenshot5.png            # 特定タブ（ダーク）
-│   └── screenshot6.png            # 座学タブ
+│   ├── screenshot6.png            # 座学タブ
+│   └── screenshot7.png            # 中身の形式と一式
 ├── docs/                          # 詳しい解説
 │   ├── en/                        # 英語版の解説
 │   │   ├── ADVANCED_CASE_STUDIES.md # 時間稼ぎのケーススタディ（英語）
