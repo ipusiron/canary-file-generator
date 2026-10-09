@@ -242,6 +242,14 @@ The pseudo logs in the detection log are built in the form of an auditd record (
 
 ## 🎯 Use cases
 
+Ways of using this tool in particular
+
+- Marking each copy differently to trace where a document came from (advance copies of manuscripts, exam papers, internal documents): give the same document to five people with only the token changed, and note in the ledger whose copy each one is. If the document turns up somewhere, paste the text into Find and the ledger note shows which copy it came from (if the text is reworded or summarized and the token is lost, it cannot be traced)
+- Catching copied-out marks too (handwritten or read out over the phone): tokens use letters without I, L, O and U (Crockford Base32), and matching reads I and L as 1 and O as 0, and ignores case and the difference between the separators "_" and "-". Even if EDU_JKWNXGS8HQS5FF11_FAKE turns up copied as `edu-jkwnxgs8hqs5ffll-fake` (1 written as l), it is shown as "Variant spelling" of the same copy
+- Offering near misses as candidates (matching reference numbers at a service desk): a string that differs from a ledger token in exactly one character is shown as "One character off" with the nearby ledger row. You can check by hand the idea of matching that tolerates one misread or mistyped character and treats two or more differences as something else
+
+General uses
+
 - Security training: let learners go through generation, a simulated alert, the ledger and Find, and see the difference between bait and detection and how a honeytoken traces the source
 - IT department preparation: before trying file server auditing (SACLs with event 4663 on Windows, auditd on Linux), prepare the files and tokens to place and check the steps that match each location with "Monitoring setup" in the ledger
 - Practice reading audit logs: look at the pseudo logs (an auditd record and event 4663 XML) to see which fields carry the path and the key, and connect them to the ledger on the Find tab

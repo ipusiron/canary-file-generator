@@ -277,3 +277,20 @@ test('画像: 参照はすべて実在する。スクリーンショットは日
   const files = (dir) => fs.readdirSync(path.join(ROOT, dir)).filter((f) => /\.(png|jpg)$/.test(f)).map((f) => `${dir}/${f}`);
   for (const f of [...files('assets'), ...files('assets/en')]) assert.ok(used.has(f), `参照していない画像: ${f}`);
 });
+
+test('ユースケースの「このツールならではの使い方」の照合の例は特定の結果と同じ（日英）', () => {
+  const [ja, en] = [read('README.md'), read('README.en.md')];
+  const token = 'EDU_JKWNXGS8HQS5FF11_FAKE';
+  assert.ok(C.isToken(token));
+  const ledger = [token, 'EDU_4P5EYN5S3T1YGKDJ_FAKE'].map((t, i) => ({ token: t, fileName: `copy${i + 1}.txt`, place: '', memo: `copy${i + 1}`, at: 0 }));
+  const kinds = (text) => C.findInText(text, ledger).hits.map((h) => [h.kind, h.matches.map((m) => m.memo)]);
+  const copied = 'edu-jkwnxgs8hqs5ffll-fake';
+  assert.deepEqual(kinds(`… ${token} …`), [['exact', ['copy1']]]);
+  assert.deepEqual(kinds(`… ${copied} …`), [['variant', ['copy1']]]);
+  assert.deepEqual(kinds('… EDU_JKWNXGS8HQS5FF1A_FAKE …'), [['near', ['copy1']]]);
+  assert.deepEqual(kinds('… EDU_JKWNXGS8HQS5FFAA_FAKE …'), [['unknown', []]]);
+  for (const text of [ja, en]) assert.ok(text.includes(token) && text.includes('`' + copied + '`'));
+  const { MESSAGES } = load('js/messages.js').CanaryMessages;
+  assert.ok(ja.includes(`「${MESSAGES.ja['kind.variant']}」`) && ja.includes(`「${MESSAGES.ja['kind.near']}」`));
+  assert.ok(en.includes(`"${MESSAGES.en['kind.variant']}"`) && en.includes(`"${MESSAGES.en['kind.near']}"`));
+});
