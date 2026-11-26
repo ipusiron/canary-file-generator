@@ -20,7 +20,7 @@ category_en:
   - Intrusion Detection
   - Honeypot
 
-difficulty: 4
+difficulty: 2
 
 tags:
   - canary
